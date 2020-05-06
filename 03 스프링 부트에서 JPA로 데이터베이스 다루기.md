@@ -454,33 +454,70 @@ spring.h2.console.enable=true
 그래서 이러한 문제를 해결하기 위해서 JPA Auditing을 사용하자          
 
 ### 1.5.1. LocalDate 사용  
+자바 8 부터는 Date 대신에 LocalDate를 사용한다.     
+   
+```
+Date와 Calendar 클래스의 문제점 
 
+1. 불변 객체가 아니다. (멀티스레드 환경에서 문제 발생 가능성 있음)    
+2. Calendar는 월(Month)값 설계가 잘못되었다. (10월을 나타내는 Calendar.OCTOBER의 숫자값은 9이다)  
+```
+domain 패키지에 BaseTimeEntity 클래스를 생성한다.     
+       
+**BaseTimeEntity**
+```java
 
-## 1.1. 소 주제
-### 1.1.1. 내용1
 ```
-내용1
+BaseTimeEntity 클래스는 모든 Entity의 상위 클래스가 되어        
+**Entity들의 createDate, modifiedDate를 자동으로 관리하는 역할이다.**                
+
+**코드 설명**
 ```
-## 1.2. 소 주제
-### 1.2.1. 내용1
+@MappedSuperclass
+     * JPA Entity 클래스들이 BaseTimeEntity을 상속할 경우 필드들도 createdDate 와 modifiedDate '컬럼'으로 인식하도록합니다.  
+______________________________________________________________________________________________
+@EntityListeners(AuditingEntityListener.class)
+     * BaseTimeEntity 클래스에 Auditing 기능을 포함시킨다.  
+감사(Auditing)란?
+  - 의심가는 데이터베이스의 작업을 모니터링 하고, 기록 정보를 수집 하는 기능 입니다.
+  - 어느시간때에 어떤 작업들이 주로 발생하는지, 어떤 작업을 누가 하는지 추적 할 수 있습니다.
+  - 감사 작업을 하면, 감사 로그를 기록해야 하므로 시스템의 속도는 더 느려질 수 밖에 없습니다.
+______________________________________________________________________________________________
+@CreateDate
+     * Entity가 생성되어 저장될 때 시간이 자동 저장됩니다.  
+______________________________________________________________________________________________
+@LastModifiedDate
+     * 조회한 Entity의 값을 변경할 때 시간이 자동 저장됩니다.  
+______________________________________________________________________________________________
 ```
-내용1
+그리고 Posts 클래스가 BaseTimeEntity를 상속받도록 변경한다.     
+   
+**Posts**
+```java
+     ...
+public class Posts extends BaseTimeEntity{
+     ...
+}
+```
+마지막으로 JPA Auditing 어노테이션들을 모두 활성화할 수 있도록     
+Application 클래스에 활성화 어노테이션을 하나 추가하자     
+       
+**Application**
+```
+@EnableJpaAuditing
+@SpringBootApplication
+public class Application{
+     public static void main(String[] args){
+          SpringApplication.run(Application.class, args);
+     }
+}
+```
+### 1.5.1. JPA Auditing 테스트 코드 작성하기  
+기존에 작성했던 PostsRepositoryTest 클래스에 테스트 메소드를 하나 더 추가해주자  
+
+**PostsRepositoryTest**
+```java
 ```
 
-***
-# 2. 대주제
-> 인용
-## 2.1. 소 주제
-### 2.1.1. 내용1
-```
-내용1
-```   
-
-***
-# 3. 대주제
-> 인용
-## 3.1. 소 주제
-### 3.1.1. 내용1
-```
-내용1
-```
+앞으로 추가될 엔티티티들은 더이상 등록일/수정이로 고민할 필요가 없다.    
+바로 BaseTimeEntity만 상속받으면 자동으로 해결되기 때문이다.  
