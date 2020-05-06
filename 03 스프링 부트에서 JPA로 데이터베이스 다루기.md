@@ -292,6 +292,8 @@ spring.jpa.show_sql = true
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL5InnoDBDialect
 ```
 ## 1.4. 등록/수정/조회 API 만들기     
+### 1.4.1. Service 와 Domain    
+
 API를 만들기 위해 총 3개의 클래스가 필요하다.    
     
 1. Request 데이터를 받을 Dto        
@@ -348,8 +350,84 @@ order, billing, delivery가 각자 본인의 취소 이벤트 처리를 하며,
 서비스 메소드는 **트랜잭션과 도메인 간의 순서만 보장해 준다.**      
        
 조금 더 쉽게 얘기하고자 한다면 update 원할시 Entity에 update 메소드를 정의하고     
-Service는 단순히 해당 객체와 메소드를 호출 및 순서만 주의하면 된다.     
+Service는 단순히 해당 객체와 메소드를 호출 및 순서만 보장해주면 된다.     
       
+### 1.4.2. 등록/수정/삭제 기능 만들기  
+PostsApiController를 web 패키지에,     
+PostsService를 service 패키지에,
+PostsSaveRequestDto를 web.dto 패키지에 생성한다.         
+
+**PostsApiController**
+```java
+```
+
+**PostsService를**
+```java
+```
+스프링에서 Bean을 주입받는 방식은 3가지이다.
+1. @Autowired
+2. setter
+3. 생성자
+   
+기존 스프링에서는 ```@Autowired```을 주로 사용하지만 이는 좋은 방법은 아니다.  
+```@Autowired```로 생성할 경우 생기는 문제점은 아래와 같다.
+
+1. 단일 책임의 원칙 위반 (생성자의 파라미터가 많아짐에 리팩토링을 할 가능성 증대된다.)   
+2. 의존성이 숨는다 (숨은 의존성만 제공)
+3. DI 컨테이너의 결합성과 테스트 용이성 (DI 컨테이너와 의존성을 가진 클래스는 곧바로 인스턴스화 할 수 없다.)
+4. 불변성 (final 선언 불가로 객체가 변할 가능성이 있다.)
+
+그렇기에 가장 권하는 방식은 **생성자로 주입** 받는 방식으로    
+```@RequiredArgsConstructor```에서 final이 선언된 모든 필드를 인자값으로 하는 생성자를 만들어준다.   
+
+**PostsSaveRequestDto**
+```java
+```
+
+**PostsUpdateRequestDto**
+```java
+```
+
+**PostsResponseDto**
+```java
+```
+Entity(도메인) 클래스와 유사한 Dto 클래스를 생성했다.         
+그 이유는 Entity 클래스를 ```Request/Response``` 클래스로 사용하는 것은 매우 안좋기 때문이다.    
+   
+Entity 클래스는 데이터베이스와 맞닿은 핵심 클래스이다.     
+Entity 클래스를 기준으로 테이블이 생성되고, 스키마가 변경된다.      
+화면 변경은 아주 사소한 기능 변경인데, 
+이를 위해 테이블과 연결된 Entity 클래스를 변경하는 것은 너무 큰 변경이다.    
+Request/Response용 Dto는 View를 위한 클래스라 정말 자주 변경이 필요하다.  
+
+View Layer와 DB Layer의 역할 분리를 철저하게 하고      
+Controller에서 결괏값으로 여러 테이블을 조인해서 줘야할 경우가 빈번하므로   
+Entity 클래스만으로 표현하기 어려운 경우가 많다.    
+그렇기에 되도록 Entity 클래스와 Controller에서 쓸 Dto는 분리해서 사용하도록 하자  
+
+**Posts**
+```java
+```
+여기서는 아주 신기한 것이 있다.   
+PostsService 코드를 보면 update 기능에서는 업데이트 쿼리를 사용하는 부분이 없다.    
+이는 바로 JPA의 **영속성 컨텍스트** 때문이다.  
+
+**영속성 컨텍스트**       
+엔티티를 영구 저장하는 환경     
+일종의 논리적 개념이라 보면 되고, JPA의 핵심 내용은 엔티티가 영속성 컨텍스트에 포함되어 있냐 아니냐로 갈린다.      
+JPA의 엔티티 매니저가 활성화된 상태로 트랜잭션 안에서 데이터베이스에 데이터를 가져오면     
+이 데이터는 영속성 컨텍스트가 유지된 상태이다.      
+이 상태에서 해당 데이터의 변경하면 트랜잭션이 끝나는 시점에 해당 테이블에 변경분을 반영한다.    
+즉, Entity 객체의 값만 변경하면 별도로 update 쿼리를 사용하지 않아도 된다.      
+이 개념을 **더티체킹**이라 한다.     
+
+### 1.4.3. 등록/수정/삭제 테스트   
+**PostsApiControllerTest**
+```java
+
+```
+이전과 달리 @WebMvcTest를 사용하지 않았는데 이유는 JPA 기능이 작동하지 않기 때문이다.  
+그렇기에 외부 연동 및 JPA 기능까지 한번에 테스트할 때는 @SpringBootTest와 TestRestTemplate을 사용하면 된다. 
 
 
 
