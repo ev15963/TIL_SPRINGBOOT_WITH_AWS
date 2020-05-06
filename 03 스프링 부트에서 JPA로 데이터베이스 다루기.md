@@ -278,14 +278,20 @@ ________________________________________________________________________________
 postsRepository.findAll()
      * 테이블 posts에 있는 모든 데이터를 조회해오는 메소드이다.  
 ```   
-별다른 설정 없이 @SpringTest를 사용할 경우 H2 데이터베이스를 자동으로 실행해준다.     
-(스프링에서는 H2 데이터베이스를 디폴트로 사용하기 때문이다.)       
-
-
-
-
-
-
+별다른 설정 없이 @SpringTest를 사용할 경우 H2 데이터베이스를 자동으로 실행해준다.      
+(스프링에서는 H2 데이터베이스를 디폴트로 사용하기 때문이다.)         
+   
+여기서 추가적인 팁으로 ```application.properties```에 코드 한줄만 추가하면 실제 실행되는 쿼리문을 볼수 있다. 
+src/main/resources 디렉토리 아래에 application.properties 생성 후 아래와 같이 작성 해주자    
+```
+spring.jpa.show_sql = true
+```
+위와 같이 했을 경우 테이블 생성 쿼리가 ```id bigint gernertated by default as identity```로 출력된다.  
+이는 h2 데이터베이스 기준으로 쿼리가 출력된 것인데 이를 mysql 버전으로 변경하고자 하면 아래와 같이 작성해주자
+```
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL5InnoDBDialect
+```
+## 1.4. 등록/수정/조회 API 만들기  
 
 
 
