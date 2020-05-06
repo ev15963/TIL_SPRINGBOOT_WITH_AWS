@@ -291,8 +291,12 @@ spring.jpa.show_sql = true
 ```
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL5InnoDBDialect
 ```
-## 1.4. 등록/수정/조회 API 만들기  
-
+## 1.4. 등록/수정/조회 API 만들기     
+API를 만들기 위해 총 3개의 클래스가 필요하다.    
+    
+1. Request 데이터를 받을 Dto        
+2. API 요청을 받을 Controller     
+3. 트랜잭션, 도메인 기능 간의 순서를 보장하는 Service    
 
 
 
