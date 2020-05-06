@@ -93,9 +93,7 @@ ___
 * 본인 작성 글에 대한 권한 관리    
 ___
 
-### 1.3.1. 프로젝트에 Spring Data Jpa 적용하기
-
-1. 라이브러리 의존성 주입 받기   
+### 1.3.1. 라이브러리 의존성 주입 받기   
 **build.gradle**   
 ```
 
@@ -114,14 +112,15 @@ h2
   * 필자 주관으로 oracle의 sqlite 같은 격  
 ``` 
 
-2. 폴더(패키지) 생성
-  1. java 폴더 -> 디폴트 패키지에 domain 폴더 생성 
+### 1.3.2. 폴더(패키지) 생성    
+**java 폴더 -> 디폴트 패키지에 domain 폴더 생성** 
    
 domain은 게시글, 댓글, 회원, 정산, 결제 등 소프트웨어에 대한 요구사항 혹은 문제 영역이라 생각하자  
 기존 객체,DAO,xml 구조와 달리 객체클래스에서만 해결할 수 있다는 차이점에서 나온 용어이다.   
 
-3. Posts 소스 코드 작성
-    
+### 1.3.3. Posts 소스 코드 작성
+domain 폴더 밑에 posts 폴더 생성후 클래스 파일 작성  
+
 **Posts**    
 ```java
 
@@ -242,7 +241,17 @@ public Example(String pesrson_name, String dog_name){
 }
 ```
 
-4. DataBase 접근을 위한 JpaRepository 생성   
+### 1.3.4. DataBase 접근을 위한 JpaRepository 생성   
+posts 폴더에 인터페이스 파일 생성 
+
+**PostsRepository**
+```java
+
+```   
+DAO를 JPA에서는 Repository라고 부르며 인터페이스로 생성한다.      
+단순히 인터페이스를 생성한 후, ```JpaRepository<Entity 클래스, PK 타입>```을 상속하면    
+**기본적인 CRUD 메소드가 자동으로 생성된다.**    
+
 
 
 
