@@ -120,7 +120,7 @@ h2
 domain은 게시글, 댓글, 회원, 정산, 결제 등 소프트웨어에 대한 요구사항 혹은 문제 영역이라 생각하자  
 기존 객체,DAO,xml 구조와 달리 객체클래스에서만 해결할 수 있다는 차이점에서 나온 용어이다.   
 
-3. Posts, User 소스 코드 작성
+3. Posts 소스 코드 작성
     
 **Posts**    
 ```java
@@ -170,7 +170,6 @@ ________________________________________________________________________________
 @Builder
   * 해당 클래의 빌더 패턴 클래스를 생성
   * 생성자 상단에 선언시 생성자에 포함된 빌드만 빌더에 포함  
-  * 매개변수의 순서가 달라도 이름에 맞춰 알아서 값을 넣어준다고 보면 된다.    
 ```
 이 Posts 클래스에는 한 가지 특징이 있는데 바로 Setter 메소드가 없다.     
 자바빈 규약을 따지면 Getter/Setter 메소드를 정의해주는 것이 좋긴 하지만   
@@ -199,14 +198,51 @@ public class Order{
      }
 }
 ```
-위와 같이 메소드에 이름을 정확히 나타내주면 어떠한 목적과 의도로 값을 세팅하는지 파악이 가능해진다.  
+위와 같이 메소드에 이름을 정확히 나타내주면 어떠한 목적과 의도로 값을 세팅하는지 파악이 가능해진다.     
+   
+**그러면**   
+Setter 가 없는 이 상황에서 어떻게 값을 채워 DB에 삽입해야 할까?    
 
+기본적인 구조는 생성자를 통해 최종값을 채운 후 DB에 삽입 하는 것이며,  
+값 변경이 필요한 경우 해당 이벤트에 맞는 public 메소드를 호출하여 변경하는 것을 전제로한다.   
+     
+또한 생성자 대신에 @Builder를 통해 제공되는 빌더 클래스를 사용한다.       
+생성자나 빌더나 생성 시점에 값을 채워주는 역할은 똑같다.       
+다만, 생성자의 경우 지금 채워야 할 필드가 무엇인지 명확하게 지정을 할 수 없다.       
+         
+예를 들면 같은 자료형의 매개변수의 위치를 변경해도 에러가 일어나지 않아 문제를 잘 모른다.        
+   
+**생성자**
+```java
+String a = "woojae";
+String b = "Charlie";
 
+Example(b , a); -> 순서가 바
 
+public Example(String pesrson_name, String dog_name){
+     this.person_name = person_name;
+     this.dog_name = dog_name;
+}
+```
 
+**빌더**
+```java
+String a = "woojae";
+String b = "Charlie";
 
+Example.builder()
+          .a(a) -> 어디에 넣는지 명확함
+          .b(b) -> 어디에 넣는지 명확함
+          .build();
 
+@Builder
+public Example(String pesrson_name, String dog_name){
+     this.person_name = person_name;
+     this.dog_name = dog_name;
+}
+```
 
+4. DataBase 접근을 위한 JpaRepository 생성   
 
 
 
