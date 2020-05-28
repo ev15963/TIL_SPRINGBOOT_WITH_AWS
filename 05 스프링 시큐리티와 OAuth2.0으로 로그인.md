@@ -55,8 +55,39 @@ spring-security-oauth2-autoconfigure
 ```application-oauth.properties``` 파일을 생성한다.           
 그리고 해당 파일에 클라이언트ID와 클라이언트 보안 비밀 코드를 다음과 같이 등록한다.       
     
+**application-oauth.properties**    
+```
+맥북에서 가져오자  
 ```
 ```
+scope=profile,email
+```
+* 많은 예제에서는 이 scope를 별도로 등록하지 않고 있다.  
+* 기본값이 openid, profile, email이기 때문이다.
+* 강제로 profile, email을 등록한 이유는 openid가 scope에 있으면 Open Id Provider로 인식하기 때문이다.  
+* 이렇게 되면 Open Id Provider 인 서비스(구글)와 그렇지 않은 서비스(네이버/카카오 등)로 나눠서 각각 Oauth2Service를 만들어야 한다.
+* 그렇기에 하나의 OauthService로 사용하기 위해 일부러 scope 에서 openid를 빼고 등록해주자.  
+  
+스프링 부트에서는 properties의 이름을 application-xxx.properties로 생성하면   
+xxx라는 이름의 profile이 생성되어 이를 통해 관리를 할 수 있다.  
+즉, profile=xxx 라는 식으로 호출하면 해당 properties의 설정들을 가져올 수 있다.   
+호출하는 방식은 여러 방식이 있지만 스프링 부트의 기본 설정 파일인 application.properties에서 
+appication-oauth.properties를 포함하도록 구성해보자  
+
+**appication.properties**
+```
+spring.profiles.include=oauth
+```
+
+## 1.4. .gitignore 등록  
+우리의 프로젝트는 깃허브와 연동하여 사용하다 보니 application-oauth.properties 파일이 깃허브에 올라갈 수 있다.   
+보안을 위해 해당 파일이 올라가는 것을 금지해주자    
+```
+application-oauth.properties
+```
+추가한 뒤 커밋했을 때 커밋 파일 목록에 **application-oauth.properties**가 나오지 않으면 성공이다.   
+만약 .gitignore에 추가했음에도 여전히 커밋 목록에 노출된다면 이는 Git의 캐시문제이다.  
+
 
 ***
 # 2. 대주제
