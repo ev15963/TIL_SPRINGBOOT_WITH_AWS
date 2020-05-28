@@ -48,15 +48,14 @@ spring-security-oauth2-autoconfigure
 **CommonOAuth2Provider**라는 enum이 새롭게 추가되어 구글, 깃허브, 페이스북, 옥타의 기본 설정값은 모두 여기서 제공한다.    
 이외에 다른 소셜 로그인을 추가한다면 직접 다 추가해 주어야 한다.  
 
+## 1.2. 
 
-### 1.1.1. 내용1
+## 1.3. application-oauth 등록  
+```application.properties```가 있는 src/main/resources/디렉토리에       
+```application-oauth.properties``` 파일을 생성한다.           
+그리고 해당 파일에 클라이언트ID와 클라이언트 보안 비밀 코드를 다음과 같이 등록한다.       
+    
 ```
-내용1
-```
-## 1.2. 소 주제
-### 1.2.1. 내용1
-```
-내용1
 ```
 
 ***
