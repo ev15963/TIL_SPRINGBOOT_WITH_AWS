@@ -332,8 +332,74 @@ if(user != null)
 ```
 
 ***
-# 3. 어노테이션 기반으로 개선하기   
-> 인용
+# 3. 어노테이션 기반으로 개선하기     
+일반적인 프로그래밍에서 개선이 필요한 나쁜 코드의 대표적인 예로 **같은 코드가 반복되는 부분**이 있습니다.   
+같은 코드를 계속해서 복사 & 붙여넣기로 만든다면 이후에 수정이 필요할 때 모든 부분을 일일이 수정해줘야 합니다.  
+이렇게 될 경우 유지보수성이 떨어질 수 밖에 없으며, 혹시나 수정이 반영되지 않은 부분이 생길 수 있습니다.   
+   
+```java
+Session user = (SessionUser) httpSession.getAttribute("user");
+```
+위 코드는 그 대표적인 예로 값이 바뀔 경우 모든 소스를 바꿔줘야합니다.      
+그렇기에 위 코드를 **메소드의 인자로 세션값을 바로 받을 수 있도록 변경해보겠습니다.**   
+   
+우선 ```config.auth``` 패키지에 ```@LoginUser``` 어노테이션을 생성합니다.    
+
+**@LoginUser**
+```java
+
+```
+
+**소스코드 해석**
+```java
+@Target(ElementType.PARAMETER)    
+  
+* 이 어노테이션이 생성될 수 있는 위치를 지정합니다.         
+* PARAMETER 로 지정했으니 메소드의 파라미터로 선언된 객체에서만 사용할 수 있습니다.    
+* 이 외에도 클래스 선언문에 쓸 수 있는 TYPE등이 있습니다.      
+______________________________________________________________________________
+@Retention(RetentionPolicy.RUNTIME)     
+* 어노테이션의 범위(?)라고 할 수 있겠습니다.     
+* 어떤 시점까지 어노테이션이 영향을 미치는지 결정합니다.    
+______________________________________________________________________________
+@interface 
+* 이 파일을 어노테이션 클래스로 지정합니다.       
+* LoginUser 라는 이름을 가진 어노테이션이 생성되었다고 보면 됩니다.     
+```
+   
+그리고 같은 위치에 ```LoginUserArgumentResolver``` 를 생성합니다.   
+```LoginUserArgumentResolver``` 는 ```HandlerMethodArgumentResolver``` 인터페이스를 구현한 클래스입니다.   
+   
+```HandlerMethodArgumentResolver```는 한 가지 기능을 제공합니다.    
+바로 조건에 맞는 경우의 메소드가 있다면     
+```HandlerMethodArgumentResolver```의 구현체가 지정한 값으로 해당 메소드의 파라미터로 넘길 수 있습니다.        
+   
+**LoginUserArgumentResolver**   
+```java
+```
+
+**소스코드 해석**
+```java
+@Override
+public boolean supportsParameter(MethodParameter parameter){ 사용자 정의}
+
+* 컨트롤러 메서드의 특정 파라미터를 지원하는지 판단합니다.  
+* 여기서는 파라미터에 @LoginUser 어노테이션이 붙어있고, 파라미터 클래스 타입이 SessionUser.class인 경우 true를 반환합니다.  
+* 즉, @LoginUser SessionUser 이면 합격  
+______________________________________________________________________________
+@Override
+public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
+   NativeWebRequest webRequest, WebDataBinderFactory binderFactroy) throws Exception {사용자 정의}
+
+* 파라미터에 전달할 객체를 생성합니다.   
+* 여기서는 세션에서 객체를 가져와서 넣습니다.  
+* 즉 소셜로그인 하면서 httpSession에 user로 값이 저장되었는데 그것을 꺼내서 
+@LoginUser SessionUser user 에 넣어주겠다는 의미입니다.   
+
+```
+
+
+
 ## 3.1. 소 주제
 ### 3.1.1. 내용1
 ```
