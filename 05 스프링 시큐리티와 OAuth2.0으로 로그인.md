@@ -48,7 +48,7 @@ spring-security-oauth2-autoconfigure
 **CommonOAuth2Provider**라는 enum이 새롭게 추가되어 구글, 깃허브, 페이스북, 옥타의 기본 설정값은 모두 여기서 제공한다.    
 이외에 다른 소셜 로그인을 추가한다면 직접 다 추가해 주어야 한다.  
 
-## 1.2. 
+## 1.2. 구글 서비스 등록 
 
 ## 1.3. application-oauth 등록  
 ```application.properties```가 있는 src/main/resources/디렉토리에       
@@ -88,9 +88,162 @@ application-oauth.properties
 추가한 뒤 커밋했을 때 커밋 파일 목록에 **application-oauth.properties**가 나오지 않으면 성공이다.   
 만약 .gitignore에 추가했음에도 여전히 커밋 목록에 노출된다면 이는 Git의 캐시문제이다.  
 
-
 ***
-# 2. 대주제
+# 2. 구글 로그인 연동하기 
+## 2.1. User Entity 설정하기
+
+구글의 로그인 인증정보를 발급 받았으니 프로젝트 구현을 진행해보자    
+우선 사용자 정보를 담당할 도메인인 ```User```클래스를 생성해주자.    
+
+**User**
+```java
+```
+
+**소스코드 해석**
+```java
+@Enumerated(EnumType.STRING)
+
+* JPA로 데이터베이스로 저장할 때 Enum 값을 어떤 형태로 저장할지를 결정합니다.    
+* 기본적으로 int로 된 숫자가 저장됩니다.   
+* 숫자로 저장되면 데이터베이스로 확인할 때 그 값이 무슨 코드를 의미하는지 알 수가 없습니다.   
+* 그래서 문자열 (EnumType.STRING)로 저장될 수 있도록 선언합니다.  
+```
+
+
+**Role**
+```java
+
+```
+**스프링 시큐리티에서는 권한 코드에 항상 ROLE_이 앞에 있어야 합니다.**      
+그래서 코드별 키 값을 ```ROLE_GEUST```, ```ROLE_USER```등으로 지정합니다.     
+   
+
+**UserRepository**
+```java
+
+```
+**소스코드 해석**
+```java
+findByEmail(String email);   
+
+* 소셜 로그인으로 반환되는 값중 email을 통해 이미 생성된 사용자인지 처음 가입하는 사용자인지 판단하기 위한 메소드
+* PK 를 사용한 것이 아니라 Unique 를 사용한 것을 알 수 있다.   
+```
+
+## 2.2. 스프링 시큐리티 설정   
+먼저 ```build.gradle```에 스프링 시큐리티 관련 의존성 하나를 추가해주자      
+    
+**build.gradle**    
+```gradle  
+complie('org.springframework.boot::spring-boot-starter-oauth2-client')
+```    
+
+**소스코드 해석**
+```gradle
+spring-boot-starter-oauth2-client
+
+* 소셜 로그인 등 클라이언트 입장에서 소셜 기능 구현시 필요한 의존성입니다.  
+* spring-boot-starter-oauth2-client 와 spring-boot-starter-oauth2-jose를 기본으로 관리해줍니다.
+```
+
+``` build.gradle```설정이 끝났으면 OAuth 라이브러리를 이용한 소셜 로그인 코드를 작성해보자      
+```config.auth``` 패키지를 생성합니다.         
+앞으로 **시큐리티 관련 클래스는 모두 이곳에 담는다**고 보면 될 것 같습니다.     
+    
+그리고 SpringConfig 클래스를 생성해줍시다.   
+
+**SpringConfig**
+```java
+```
+**소스코드 해석**
+```java
+@EnableWebSecurity   
+
+* Spring Security 설정들을 활성화시켜줍니다.     
+_____________________________________________________________
+http.csrf().disable().headers().frameOptions().disable()    
+
+* h2-console 화면을 사용하기 위해 해당 옵션들을 disable합니다.   
+_____________________________________________________________
+.authorizeRequests()  
+
+* URL 별 권한 관리를 설정하는 옵션의 시작점입니다.   
+* authorizeRequests() 가 선언되어야만 andMatchers() 옵션을 사용할 수 있습니다.   
+_____________________________________________________________
+.andMatchers("url", "url2")    
+
+* 권한 관리 대상을 지정하는 옵션입니다.   
+* URL, HTTP 메소드별로 관리가 가능합니다.   
+* "/" 등 지정된 URL들은 permitAll() 옵션을 통해 전체 열람 권한을 주었습니다.   
+* "api/v1/**" 주소를 가진 API는 USER 권한을 가진 사람만 가능하도록 했습니다.  
+_____________________________________________________________
+.anyRequest()
+
+* 설정된 값 이외 나머지 URL 들을 나타냅니다.  
+* 여기서는 .authenticated()을 추가하여 나머지 URL 들은 모두 인증된 사용자들에게만 허용합니다.   
+* 인증된 사용자 즉, 로그인 한 사용자들을 이야기합니다.   
+_____________________________________________________________
+.logout().logoutSuccessUrl("/")     
+* 로그아웃 기능에 대한 여러 설정의 진입점입니다.   
+* 로그아웃 성공시 / 주소로 이동합니다.  
+_____________________________________________________________
+.oauth2Login()   
+
+* OAuth2 로그인 기능에 대한 여러 설정의 진입점입니다.   
+_____________________________________________________________
+.userInfoEndpoint()   
+
+* OAuth2 로그인 성공 이후 사용자 정보를 가져올 때의 설정들을 담당합니다.   
+_____________________________________________________________
+.userService(customOAuth2UserService)    
+
+* 소셜 로그인 성공시 후속 조치를 진행할 UserService 인터페이스의 구현체를 등록합니다.       
+* 리소스 서버(즉, 소셜 서비스들)에서 사용자 정보를 가져온 상태에서 추가로 진행하고자 하는 기능을 명시할 수 있습니다.  
+```
+설정 코드 작성이 끝났다면 ```CustomOAuth2UserService```클래스를 생성하자   
+이 클래스는 구글 로그인 이후 가져온 사용자 정보들을 기반으로    
+가입 및 정보수정, 세션 저장등의 기능을 지원해준다.       
+      
+**CustomOAuth2UserService**    
+```java
+```
+**소스코드 해석**
+```java
+String registrationId = userRequest.getClientRegistration().getRegistrationId();
+
+* 현재 로그인 진행중인 서비스를 구분하는 코드   
+* 구글로 로그인, 네이버로 로그인하는지 구분하기 위해 사용되는 코드이다.   
+_________________________________________________________________________________________
+String userNameAttributeName =   
+userRequest.getClientRegistration().getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
+
+* OAuth2 로그인 진행시 키가 되는 필드값을 이야기합니다. PK 같은 역할   
+* 구글의 경우 기본적으로 코드를 지원하지만 ("sub") , 네이버 카카오등은 지원하지 않습니다.   
+* 이후 네이버 로그인과 구글 로그인을 동시 지원할 때 사용할 것입니다.  
+_________________________________________________________________________________________
+OAuthAttributes attributes = 
+OAuthAttributes.of(registrationId, userNameAttributeName, oAuth2User.getAttributes());
+
+* oAuth2User 는 OAuth2UserService 로 만들어진 OAuth2User 객체를 참조하는 변수이다.  
+* OAuthAttributes attributes는 OAuth2UserService 를 통해 가져온 OAuth2User 클래스의 attribute를 담을 클래스입니다. 
+* 이후 네이버 등 다른 소셜 로그인도 이 클래스를 사용합니다.   
+* 이것은 우리가 직접 정의해주는 클래스로 밑에서 클래스를 작성할 것입니다.   
+________________________________________________________________________________________  
+httpSession.setAttribute("user", new SessionUser(user));
+
+* 세션에 자용자 정보를 저장하기 위한 DTO 클래스    
+* 왜 User 클래스를 사용하지 않고 새로 만들어서 쓰냐면  
+*
+*
+```
+
+
+
+
+
+
+
+
 > 인용
 ## 2.1. 소 주제
 ### 2.1.1. 내용1
