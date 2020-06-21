@@ -257,8 +257,28 @@ Email 이 없다면 지금 정보로 Entity를 만들어라 하고 있습니다.
 CustomOAuth2UserService 클래스까지 생성되었다면 OAuthAttributes 클래스를 생성합니다.      
 필자의 경우 OAuthAttributes는 DTO로 보기 때문에 config.auth.dto 패키지를 만들어 해당 패키지에 생성했습니다.   
 
+**OAuthAttributes**     
+```java   
+```   
+**소스코드 해석**
+```java
+public static OAuthAttributes of(){}   
 
+* OAuth2User에서 반환하는 사용자 정보는 Map 자료구조 형태이기에 값 하나하나를 변환해야한다.   
+__________________________________________________________________________________________
+toEntity()    
 
+* User 엔티티를 생성합니다.   
+* OAuthAttributes 에서 엔티티를 생성하는 시점은처음 가입할 때입니다.   
+* 가입할 때의 기본 권한을 GUEST로 주기 위해서 role 빌더값에는 Role.GUEST를 사용합니다.   
+```   
+OAuthAttributes 클래스 생성이 끝났으면 같은 패키지에 SessionUser 클래스를 생성합니다.     
+   
+**SessionUser**
+```java
+```
+SessionUser에는 인증된 사용자 정보만 필요합니다.         
+그 외에 필요한 정보들은 없으니 name, email, picture 만 필드로 선언합니다.          
 
 
 
