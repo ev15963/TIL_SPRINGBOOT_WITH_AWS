@@ -395,9 +395,32 @@ public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer m
 * 여기서는 세션에서 객체를 가져와서 넣습니다.  
 * 즉 소셜로그인 하면서 httpSession에 user로 값이 저장되었는데 그것을 꺼내서 
 @LoginUser SessionUser user 에 넣어주겠다는 의미입니다.   
+```
+이제 이렇게 생성된 ```LoginUserArgumentResolver```를 스프링에서 인식될 수 있도록      
+```WebMvcConfiguration```에 추가하도록 하자.         
+config 패키지에 ```WebConfig``` 클래스를 생성           
 
+**WebConfig**
+```java
+``` 
+```HandlerMethodArgumentResovler```는 항상              
+```WebMvcConfigure``` 의 ```addArgumentResolvers()```를 통해 추가해야 합니다.            
+다른 ```Handler-MethodArgumentResovler```가 필요한다면 같은 방식으로 추가해주면 됩니다.         
+   
+모든 설정이 끝났으니 처음 언급한 대로     
+```IndexController``` 의 코드에서 반복되는 부분들을 모두 ```@LoginUser```로 개선하겠습니다.        
+     
+**IndexController**    
+```java
 ```
 
+**소스코드 해석**
+```java
+@LoginUser SessionUser user   
+  
+* 기존에(User) httpSession.getAttribute("user")로 가져오던 세션 정보 값이 개선되었습니다.     
+* 이제는 어느 컨트롤러든지 @LoginUser만 사용함녀 세션 정보를 가져올 수 있게 되었습니다.   
+```   
 
 
 ## 3.1. 소 주제
