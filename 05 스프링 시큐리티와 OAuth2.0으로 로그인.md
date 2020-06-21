@@ -460,8 +460,35 @@ config 패키지에 ```WebConfig``` 클래스를 생성
 만약 본인이 운영 중인 서비스가 커진다면 한번 고려해 보고, 이 과정에서는 데이터베이스를 사용하겠습니다.  
 
 ## 4.1. spring-session-jdbc 등록  
-먼저 ```Build.gradle``` 에 다음과 같이 의존성을 등록합니다.  
+```spring-session-jdbc```역시 현재 상태에선 바로 사용할 수 없습니다.    
+spring web, spring jpa를 사용했던 것과 마찬가지로 의존성이 추가되어 있어야 사용할 수 있습니다.  
+   
+```Build.gradle``` 에 다음과 같이 의존성을 등록합니다.  
 
+**build.gradle**
+```gradle
+compile('org.springframework.session:spring-session-jdbc')    
+```    
+그리고 ```application.properties```에 세션 저장소를 jdbc로 선택하도록 코드를 추가합니다.     
+설정은 다음 코드가 전부입니다. 이 외에 설정할 것이 없습니다.      
+
+**application.properties**
+```
+spring.session.store-type-jdbc   
+```
+모두 변경하였으니 다시 애플리케이션을 실행해서 로그인을 테스트한 뒤, h2-console로 접속합니다.   
+h2-console을 보면 세션을 위한 테이블 2개(SPRING_SESSION, SPRING_SESSION_ATTRIBUTES)가 생성된 것을 볼 수 있습니다.    
+**JPA로 인해 세션 테이블이 자동 생성**되었기 때문에 별도로 해야 할 일은 없습니다.  
+방금 로그인했기 때문에 한 개의 세션이 등록돼 있는 것을 볼 수 있습니다.   
+   
+이렇게 세션 저장소를 데이터베이스로 교체했습니다.   
+물론 지금은 기존과 동일하게 **스프링을 재시작하면 세션이 풀립니다.**     
+이유는 H2 기반으로 스프링이 재 실행될 때 **H2도 재시작되기 때문입니다.**    
+이후 AWS로 배포하게 되면 AWS의 데이터베이스 서비스인 RDS를 사용하게 되니     
+이때부터는 세션이 풀리지 않습니다.   
+
+
+   
 
 
 
