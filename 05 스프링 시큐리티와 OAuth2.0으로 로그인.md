@@ -313,13 +313,26 @@ a href = "/oauth2/authorization/google"
 * 로그아웃 URL과 마찬가지로 개발자가 별도의 컨트롤러를 생성할 필요가 없습니다.  
 * 후에 네이버 로그인은 따로 설정을 해주어야 할 것입니다.  
 ```
+```index.mustache```에서 userName을 사용할 수 있게 IndexController 에서 UserName을 model에 저장하자  
 
+**IndexController**
+```java
+```
+**소스코드 해석**
+```java
+(SessionUser) httpSession.getAttribute("user");
+    
+* 앞서 작성된 CustomOAuth2UserService에서 로그인 성공 시 세션에 SessionUser를 지정하도록 구성했습니다.          
+* 즉, 로그인 성공시 httpSession.getAttribute("user")에서 값을 가져올 수 있습니다.     
+______________________________________________________________________________
+if(user != null)   
 
-
-
+* 세션에 저장된 값이 있을 때만 model에 userName 으로 등록합니다.      
+* 세션에 저장된 값이 없으면 model엔 아무런 값이 없는 상태이니 로그인 버튼이 보이게 된다.   
+```
 
 ***
-# 3. 대주제
+# 3. 어노테이션 기반으로 개선하기   
 > 인용
 ## 3.1. 소 주제
 ### 3.1.1. 내용1
