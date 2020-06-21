@@ -233,24 +233,31 @@ httpSession.setAttribute("user", new SessionUser(user));
 
 * 세션에 자용자 정보를 저장하기 위한 DTO 클래스  
 * User 클래스를 사용하면 안되기에 SessionUser를 만들었다.   
-```
-**왜 User 클래스를 사용하면 안되나요?**
-```
+* 왜 User 클래스를 사용하면 안되나요?**
 만약 User 클래스를 그대로 사용했다면 다음과 같은 에러가 발생합니다.   
 
 Failed to convert from type [java.lang.Object] 
 to type [byte[]] for value 'com.jojoIdu.book.springboot.domain.user.User@4a43d6'    
-```   
-이는 User 클래스에 **직렬화를 구현하지 않았다는 의미의 에러입니다.**     
+이는 User 클래스에 직렬화를 구현하지 않았다는 의미의 에러입니다.     
 그렇다면 User 클래스에 직렬화 코드를 넣으면 될까요? 그렇기에는 생각할 것이 많습니다.   
 
-바로 **User 클래스가  데이터베이스와 직접 연결되는 엔티티이기 때문입니다**       
+바로 User 클래스가  데이터베이스와 직접 연결되는 엔티티이기 때문입니다       
 엔티티 클래스에는 언제 다른 엔티티와의 관계가 형성될지 모릅니다.       
    
-예를 들면 ```@OneToMany``` , ```@ManyToMany```등 자식 엔티티를 갖고 있다면      
-**직렬화 대상에 자식들까지 포함되니 성능 이슈, 부수 효과가 발생할 확률이 높습니다.**      
+예를 들면 @OneToMany , @ManyToMany등 자식 엔티티를 갖고 있다면      
+직렬화 대상에 자식들까지 포함되니 성능 이슈, 부수 효과가 발생할 확률이 높습니다.      
       
-**그래서 직렬화 기능을 가진 DTO를 하나 추가로 만드는 것이 이후 운영 및 유지보수 때 많은 도움이 됩니다.**     
+그래서 직렬화 기능을 가진 DTO를 하나 추가로 만드는 것이 이후 운영 및 유지보수 때 많은 도움이 됩니다.  
+```
+구글 사용자 정보가 업데이트 되었을 때를 대비하여 update 기능도 같이 구현되었습니다.      
+사용자의 이름이나, 프로필 사진이 변경되면 User 엔티티에도 반영이 됩니다.     
+정확히 말하면 기존 Email 이 있다면 최신 정보로 받아오고         
+Email 이 없다면 지금 정보로 Entity를 만들어라 하고 있습니다.    
+   
+CustomOAuth2UserService 클래스까지 생성되었다면 OAuthAttributes 클래스를 생성합니다.      
+필자의 경우 OAuthAttributes는 DTO로 보기 때문에 config.auth.dto 패키지를 만들어 해당 패키지에 생성했습니다.   
+
+
 
 
 
