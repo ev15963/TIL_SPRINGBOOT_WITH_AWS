@@ -597,5 +597,19 @@ test 에 ```application.properties```가 없으면 main의 설정을 그대로 �
     testCompile("org.springframework.security:spring-security-test")
 ```
    
-그리고 
+그리고 PostsApiControllerTest 의 2개 테스트 메소드에 다음과 같이 임의의 사용자 인증을 추가합니다.
+
+**PostsApiControllerTest**
+```java
+```
+
+**소스코드 해석**   
+```java
+@WithMockUser(roles="USER")
+
+* 인증된 모의(가짜) 사용자를 만들어서 사용합니다.    
+* roles에 권한을 추가할 수 있습니다. 
+* 즉, 이 어노테이션으로 인해 ROLE_USER 권한을 가진 사용자가 API를 요청하는 것과 동일한 효과를 가지게 됩니다.   
+
+```
 
