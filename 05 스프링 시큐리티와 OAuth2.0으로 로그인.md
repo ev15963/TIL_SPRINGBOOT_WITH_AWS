@@ -584,5 +584,18 @@ test 에 ```application.properties```가 없으면 main의 설정을 그대로 �
 해당 값들을 ```test/resources/application.properties```에 넣어주도록 하겠습니다.             
 단, 실제로 연동해서 사용할 것이 아니기 때문에 **가짜 설정값을 등록해줍시다.**     
   
+## 6.2. 302 Status Code   
+응답의 결과로 200(정상 응답) Status Code를 원했는데 결과는 302(리다이렉션 응답)Status Code가 와서 실패했습니다.   
+이는 스프링 시큐리티 설정 때문에 **인증되지 않은 사용자의 요청은 이동시키기 때문입니다.**   
+그래서 이런 API 요청은 **임의로 인증된 사용자를 추가하여 API만 테스트해 볼 수 있게 하겠습니다.**   
+    
+어려운 방법은 아니며, 이미 스프링 시큐리티에서 공식적으로 방법을 지원하고 있으므로 바로 사용해보겠습니다.   
+**스프링 시큐리티 테스트를 위한 여러 도구를 지원하는**   ```spring-security-test```를 ```build.gradle```에 추가합니다.    
 
+**build.gradle**
+```gradle
+    testCompile("org.springframework.security:spring-security-test")
+```
+   
+그리고 
 
