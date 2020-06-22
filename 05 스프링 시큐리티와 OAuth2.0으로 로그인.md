@@ -493,6 +493,28 @@ h2-console을 보면 세션을 위한 테이블 2개(SPRING_SESSION, SPRING_SESS
 마지막으로 네이버로 로그인하는 기능을 추가해보겠습니다.     
   
 ## 5.1. 네이버 API 등록  
+   
+해당 키값들을 ```application-oauth.properties``` 에 등록해줍시다.       
+네이버에서는 스프링 시큐리티를 공식 지원하지 않기 때문에     
+그동안 Commmon-OAuth2Provider에서 해주던 값들도 전부 수동으로 입력해줘야 합니다.      
+
+**application-oauth.properties**
+```
+```
+**소스코드 해석**
+```
+user_name_attribute=response
+
+* 기준이 되는 user_name 의 이름을 네이버에서는 response로 해야합니다.         
+* 이유는 네이버의 회원 조회 시 반환되는 JSON 형태 때문입니다.          
+* 이유는 네이버의 회원 조회 시 반환되는 JSON 형태 때문입니다.          
+```
+네이버는 reponse라는 JSON 
+* 이유는 네이버의 회원 조회 시 반환되는 JSON 형태 때문입니다.          
+
+** 네이버 오픈 API의 로그인 회원 결과**
+
+
 
 ## 5.2. 스프링 시큐리티 설정 등록  
 
