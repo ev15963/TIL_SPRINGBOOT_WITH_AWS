@@ -624,5 +624,83 @@ test 에 ```application.properties```가 없으면 main의 설정을 그대로 �
 ```java   
 @Before
 
-*      
+* 매번 테스트가 시작되기 전에 
+* 여기서는 MockMvc 인스턴스를 생성합니다.
+_________________________________________________
+mvc.perform(post(url)
+   .contentType(MediaType.APPLICATION_JSON_UTF8)
+   .content(new ObjectMapper().writeValueAsString(requestDto)))
+   .andExpect(status().isOk());
+
+* 생성된 MockMvc 를 통해 API를 테스트합니다.   
+* 본문(body) 영역은 문자열로 표현하기 위해 ObjectMapper를 통해 문자열 JSON으로 변환합니다.   
 ```   
+   
+이제 Posts 테스트도 정상적으로 수행되었습니다!!!   
+
+## 6.3. @WebMvcTest에서 CustomOAuth2UserService을 찾을 수 없음        
+HelloControllerTest 는 앞선 테스트와 다른점은 바로           
+```@SpringBootTest```가 아니라 ```@WebMvcTest```를 사용한다는 점입니다.        
+    
+1번 에러 수정을 통해서 스프링 시큐리티 설정은 잘 작동하지만,       
+```@WebMvcTest```는 **CustomOAuth2UserService을 스캔하지 않기 때문입니다.**        
+         
+```@WebMvcTest```는 ```WebSecurityConfigurerAdapter```, ```WebMvcConfigurer``` 를 비롯한         
+```@ControllerAdvice```, ```@Controller```를 읽습니다.        
+이를 다르게 생각해보면 **```@Repository```, ```@Service```, ```@Component```는 스캔 대상이 아닙니다.**      
+   
+그러니 SpringConfig는 읽었지만   
+SpringConfig를 생성하기 위해 필요한 ```CustomOAuth2UserService``` 는 읽을수가 없어 에러가 발생한 것이다.   
+HelloController 에서는 OAuth2 관련 내용을 사용하지 않으므로 제외한 상태로 테스트가 가능하게끔 아래 코드를 입력해주자
+그리고 여기서 
+```java
+@RunWith(SpringRunner.class)
+@WebMvcTest(controllers = HelloController.class,
+        excludeFilters = {
+        @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = SecurityConfig.class)
+        }
+)
+public class HelloControllerTest {
+```
+그리고 여기서 ```@WithMockUser(roles="USER")``` 를 메소드 위에 정의함으로써 가짜로 인증된 사용자를 생성합니다.   
+        
+**하지만**  다음과 같이 추가로 에러가 생긴 것을 알 수 있다.     
+    
+```
+java.lang.IllegalArgumentException: At least one JPA metamodel must be present!   
+```
+이 에러는 Application.java의 ```@EnableJpaAuditing``` 으로 인해 발생합니다.      
+```@EnableJpaAuditing```를 사용하기 위해선 최소 하나의 ```@Entity```클래스가 필요합니다.     
+```@WebMvcTest```이다 보니 ```@Controller```를 제외한 어노테이션을 읽지 못하니 당연히 없다고 판단되어집니다.     
+   
+```@EnableJpaAuditing```가 ```@SpringBootApplication```과 함께 있다보니     
+```@WebMvcTest``` 에서 ```@EnableJpaAuditing```를 스캔하게 되어서 사용된 것입니다.      
+그렇기에 우리는 ```@EnableJpaAuditing```과 ```@SpringBootApplication``` 둘을 분리해보도록 하겠습니다.   
+   
+우선 ```Application.java``` 에서 ```@EnableJpaAuditing```를 주석처리로 지워주자     
+      
+**Application**
+```java
+// @EnableJpaAuditing
+@SpringBootApplication
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+```
+   
+그리고 ```@EnableJpaAuditing```를 다른곳에서 설정해주기 위해     
+config 패키지에 JpaConfig를 생성하여 ```@EnableJpaAuditing```를 추가해줍시다.     
+
+**JpaConfig**
+```java
+@Configuration
+@EnableJpaAuditing // JPA Auditing 활성화
+public class JpaConfig {}
+```
+```@WebMvcTest```는 ```WebSecurityConfigurerAdapter```, ```WebMvcConfigurer``` 를 비롯한         
+```@ControllerAdvice```, ```@Controller```를 읽지만 **일반적인 ```@Configuration```을 읽지는 못합니다.**      
+
+
+
