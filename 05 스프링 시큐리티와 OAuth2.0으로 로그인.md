@@ -507,18 +507,47 @@ user_name_attribute=response
 
 * 기준이 되는 user_name 의 이름을 네이버에서는 response로 해야합니다.         
 * 이유는 네이버의 회원 조회 시 반환되는 JSON 형태 때문입니다.          
-* 이유는 네이버의 회원 조회 시 반환되는 JSON 형태 때문입니다.          
 ```
-네이버는 reponse라는 JSON 
-* 이유는 네이버의 회원 조회 시 반환되는 JSON 형태 때문입니다.          
+   
+네이버는 reponse라는 JSON 객체의 최상위 필드로 한번 더 묶여서 반환되었기 때문이다.      
+즉, ```JSON{response:{email : ~ , nickName : ~, profile_image : ~}}``` 이런형태로 반환된다.   
 
 ** 네이버 오픈 API의 로그인 회원 결과**
-
-
+```
+```
+스프링 시큐리티에선 **하위 필드를 명시할 수 없습니다.**   
+최상위 필드들만 ```user_name```으로 지정이 가능합니다.    
+즉, 반환된 JSON 값의 첫번째 key(필드)값만 사용이 가능하다는 뜻 (객체 필드의 키는 사용 불가능)    
+   
+네이버의 응답값 최상위 필드는 **resultCode, message, response** 입니다.    
+이러한 이유로 스프링 시큐리티에서 인식 가능한 필드는 저 3개 중에 골라야 합니다.   
+   
+본문에서 담고 있는 response를 user_name으로 지정하고 이후       
+**자바 코드로 response의 id를 user_name으로 지정하겠습니다.**     
 
 ## 5.2. 스프링 시큐리티 설정 등록  
+우리는 구글 로그인을 등록하면서 대부분 코드를 확장성 있게 작성했습니다.   
+그렇기에 네이버도 쉽게 등록할 수 있습니다.   
+    
+ ```OAuthAttributes.java```에 다음과 같이       
+ **네이버인지 판단하는 코드와 네이버 생성자만 추가해줍니다.**         
 
+**OAuthAttributes.java**
+```java
+```
+    
+**index.mustache**   
+```mustache
+```
+**소스코드 해석**   
+```mustache
+/oauth2/authorization/naver
+   
+* 네이버 로그인 URL은 application-oauth.properties 에 등록한 return-uri 값에 맞춰 자동으로 등록됩니다.   
+* /oauth2/authorization/ 까지는 고정이고 마지막 Path만 각 소셜 로그인 코드를 사용하면 됩니다.   
+* 여기서는 naver 가 마지막 path 가 됩니다.
 
+```
 
 ***
 # 6. 기존 테스트에 시큐리티 적용하기   
