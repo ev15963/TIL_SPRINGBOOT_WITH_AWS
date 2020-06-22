@@ -568,7 +568,21 @@ test를 실행해 보면 다음과 같이 롬복을 이용한 테스트 외에 �
 
 ## 6.1. CustomOAuth2UserService를 찾을 수 없음     
 
-
-
+[사진]   
+이는 ```CustomOAuth2UserService``` 를 생성하는데 필요한 소셜 로그인 관련 설정값들이 없기 때문에 발생합니다.        
+하지만 우리는 분명 ```application-oatuh.properties```에 설정값들을 추가했는데 왜 설정이 없다고 할까요?        
+   
+이는 ```src/main``` 환경과 ```src/test``` 환경의 차이 때문입니다.     
+둘은 본인만의 환경 구성을 가집니다.    
+다만, ```src/main/resources/application-properties```가 테스트 코드를 수행할 때도 적용되는 이유는    
+test 에 ```application.properties```가 없으면 main의 설정을 그대로 가져오기 때문입니다.   
+다만, 자동으로 가져오는 옵션의 범위는 ```application.properties```파일 까지입니다.   
+        
+즉, ```application-oauth.properties```는 test파일에 없다고 가져오는 파일이 아니라는 점입니다.     
+그래서 이 문제를 해결하기 위해서는 test 폴더에도 ```application-oauth.properties```의 값들을 작성해줘야한다.      
+우리는 ```application-oauth.properties```를 새로 만들기보다       
+해당 값들을 ```test/resources/application.properties```에 넣어주도록 하겠습니다.             
+단, 실제로 연동해서 사용할 것이 아니기 때문에 **가짜 설정값을 등록해줍시다.**     
+  
 
 
