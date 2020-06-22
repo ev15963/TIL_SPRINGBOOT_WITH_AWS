@@ -610,6 +610,19 @@ test 에 ```application.properties```가 없으면 main의 설정을 그대로 �
 * 인증된 모의(가짜) 사용자를 만들어서 사용합니다.    
 * roles에 권한을 추가할 수 있습니다. 
 * 즉, 이 어노테이션으로 인해 ROLE_USER 권한을 가진 사용자가 API를 요청하는 것과 동일한 효과를 가지게 됩니다.   
+```  
+이 정도만 하면 테스트가 될 것 같지만, 실제로 작동하지는 않습니다.       
+**```@WithMockUser(roles="USER")``` 가 MockMvcd에서만 작동하기 때문입니다.**       
+  
+현재 PostsApiControllerTest는 ```@SpringBootTest```로만 되어있으며 MockMvc를 전혀 사용하지 않습니다.   
+그래서 ```@SpringBootTest```에서 MockMvc를 사용하는 방법을 소개합니다.  
 
+**PostsApiControllerTest**
+```java
 ```
+**소스코드 해석**     
+```java   
+@Before
 
+*      
+```   
