@@ -533,9 +533,6 @@ SessionUser에는 인증된 사용자 정보만 필요합니다.
                     <a href="/oauth2/authorization/google" class="btn btn-success active" role="button">
                         Google Login
                     </a>
-                    <a href="/oauth2/authorization/naver" class="btn btn-secondary active" role="button">
-                        Naver Login
-                    </a>
                 {{/userName}}
             </div>
         </div>
