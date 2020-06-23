@@ -499,10 +499,28 @@ h2-console을 보면 세션을 위한 테이블 2개(SPRING_SESSION, SPRING_SESS
 그동안 Commmon-OAuth2Provider에서 해주던 값들도 전부 수동으로 입력해줘야 합니다.      
 
 **application-oauth.properties**
-```
+```properties
+spring.security.oauth2.client.registration.google.client-id=692886957287-663ep6r6ds8ee0oukr9f5mrqof57k6bj.apps.googleusercontent.com
+spring.security.oauth2.client.registration.google.client-secret=pVQcqYjwp_7fYyYdOJfkd5rk
+spring.security.oauth2.client.registration.google.scope=profile,email
+
+#registration
+spring.security.oauth2.client.registration.naver.client-id=qJONuabRwLzw44TBZavZ
+spring.security.oauth2.client.registration.naver.client-secret=2fGz3R2u8B
+spring.security.oauth2.client.registration.naver.redirect-uri={baseUrl}/{action}/oauth2/code/{registrationId}
+spring.security.oauth2.client.registration.naver.authorization_grant_type=authorization_code
+spring.security.oauth2.client.registration.naver.scope=name,email,profile_image
+spring.security.oauth2.client.registration.naver.client-name=Naver
+
+# provider
+spring.security.oauth2.client.provider.naver.authorization_uri=https://nid.naver.com/oauth2.0/authorize
+spring.security.oauth2.client.provider.naver.token_uri=https://nid.naver.com/oauth2.0/token
+spring.security.oauth2.client.provider.naver.user-info-uri=https://openapi.naver.com/v1/nid/me
+spring.security.oauth2.client.provider.naver.user_name_attribute=response
+
 ```
 **소스코드 해석**
-```
+```properties
 user_name_attribute=response
 
 * 기준이 되는 user_name 의 이름을 네이버에서는 response로 해야합니다.         
@@ -534,10 +552,119 @@ user_name_attribute=response
 
 **OAuthAttributes.java**
 ```java
+package com.jojoldu.book.springboot.config.auth.dto;
+
+import com.jojoldu.book.springboot.domain.user.Role;
+import com.jojoldu.book.springboot.domain.user.User;
+import lombok.Builder;
+import lombok.Getter;
+
+import java.util.Map;
+
+@Getter
+public class OAuthAttributes {
+    private Map<String, Object> attributes;
+    private String nameAttributeKey;
+    private String name;
+    private String email;
+    private String picture;
+
+    @Builder
+    public OAuthAttributes(Map<String, Object> attributes, String nameAttributeKey, String name, String email, String picture){
+        this.attributes = attributes;
+        this.nameAttributeKey = nameAttributeKey;
+        this.name = name;
+        this.email = email;
+        this.picture = picture;
+    }
+
+    public static OAuthAttributes of(String registrationId, String userNameAttributeName, Map<String, Object> attributes){
+        System.out.println("registration="+registrationId);
+        if("naver".equals(registrationId)){
+            return ofNaver("id", attributes);
+        }
+        return ofGoogle(userNameAttributeName, attributes);
+    }
+    private static OAuthAttributes ofGoogle(String userNameAttributeName, Map<String, Object> attributes){
+        return OAuthAttributes.builder()
+                .name((String) attributes.get("name"))
+                .email((String) attributes.get("email"))
+                .picture((String) attributes.get("picture"))
+                .attributes(attributes)
+                .nameAttributeKey(userNameAttributeName)
+                .build();
+    }
+    private static OAuthAttributes ofNaver(String userNameAttributeName, Map<String, Object> attributes){
+        Map<String, Object> response = (Map<String, Object>) attributes.get("response");
+
+        return OAuthAttributes.builder()
+                .name((String) response.get("name"))
+                .email((String) response.get("email"))
+                .picture((String) response.get("profile_image"))
+                .attributes(response)
+                .nameAttributeKey(userNameAttributeName)
+                .build();
+    }
+
+    public User toEntity(){
+        return User.builder()
+                .name(name)
+                .email(email)
+                .picture(picture)
+                .role(Role.GUEST)
+                .build();
+    }
+}
+
 ```
     
 **index.mustache**   
 ```mustache
+{{>layout/header}}
+    <h1>스프링 부트로 시작하는 웹 서비스 ver.2</h1>
+    <div class="col-md-12">
+        <!-- 로그인 기능 영역 -->
+        <div class="row">
+            <div class="col-md-6">
+                <a href="/posts/save" role="button" class="btn btn-primary">글 등록</a>
+                {{#userName}}
+                    Looged in as : <span id="user">{{userName}}</span>
+                    <a href="/logout" class="btn btn-info active" role="button">Logout</a>
+                {{/userName}}
+                {{^userName}}
+                    <a href="/oauth2/authorization/google" class="btn btn-success active" role="button">
+                        Google Login
+                    </a>
+                    <a href="/oauth2/authorization/naver" class="btn btn-secondary active" role="button">
+                        Naver Login
+                    </a>
+                {{/userName}}
+            </div>
+        </div>
+    </div>
+    <br>
+    <!-- 목록 출력 영역 -->
+    <table class="table table-horizontal table-bordered">
+        <thead class="thead-string">
+            <tr>
+                <th>게시글번호</th>
+                <th>제목</th>
+                <th>작성자</th>
+                <th>최종수정일</th>
+            </tr>
+        </thead>
+        <tbody id="tbody">
+            {{#posts}}
+                <tr>
+                    <td>{{id}}</td>
+                    <td><a href="/posts/update/{{id}}">{{title}}</a></td>
+                    <td>{{author}}</td>
+                    <td>{{modifiedDate}}</td>
+                </tr>
+            {{/posts}}
+        </tbody>
+    </table>
+{{>layout/footer}}
 ```
 **소스코드 해석**   
 ```mustache
@@ -546,7 +673,6 @@ user_name_attribute=response
 * 네이버 로그인 URL은 application-oauth.properties 에 등록한 return-uri 값에 맞춰 자동으로 등록됩니다.   
 * /oauth2/authorization/ 까지는 고정이고 마지막 Path만 각 소셜 로그인 코드를 사용하면 됩니다.   
 * 여기서는 naver 가 마지막 path 가 됩니다.
-
 ```
 
 ***
@@ -580,10 +706,24 @@ test 에 ```application.properties```가 없으면 main의 설정을 그대로 �
         
 즉, ```application-oauth.properties```는 test파일에 없다고 가져오는 파일이 아니라는 점입니다.     
 그래서 이 문제를 해결하기 위해서는 test 폴더에도 ```application-oauth.properties```의 값들을 작성해줘야한다.      
-우리는 ```application-oauth.properties```를 새로 만들기보다       
-해당 값들을 ```test/resources/application.properties```에 넣어주도록 하겠습니다.             
-단, 실제로 연동해서 사용할 것이 아니기 때문에 **가짜 설정값을 등록해줍시다.**     
-  
+우리는 ```application-oauth.properties```를 새로 만들기보다         
+해당 값들을 ```test/resources/application.properties```에 넣어주도록 하겠습니다.               
+단, 실제로 연동해서 사용할 것이 아니기 때문에 **가짜 설정값을 등록해줍시다.**        
+    
+**test/resources/application.properties**
+```properties
+spring.jpa.show_sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL5Dialect
+spring.h2.console.enabled=true
+spring.session.store-type=jdbc
+
+# Test OAuth
+spring.security.oauth2.client.registration.google.client-id=test
+spring.security.oauth2.client.registration.google.client-secret=test
+spring.security.oauth2.client.registration.google.scope=profile,email
+```
+
+ 
 ## 6.2. 302 Status Code   
 응답의 결과로 200(정상 응답) Status Code를 원했는데 결과는 302(리다이렉션 응답)Status Code가 와서 실패했습니다.   
 이는 스프링 시큐리티 설정 때문에 **인증되지 않은 사용자의 요청은 이동시키기 때문입니다.**   
@@ -619,6 +759,128 @@ test 에 ```application.properties```가 없으면 main의 설정을 그대로 �
 
 **PostsApiControllerTest**
 ```java
+package com.jojoldu.book.springboot.web;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jojoldu.book.springboot.domain.posts.Posts;
+import com.jojoldu.book.springboot.domain.posts.PostsRepository;
+import com.jojoldu.book.springboot.web.dto.PostsSaveRequestDto;
+import com.jojoldu.book.springboot.web.dto.PostsUpdateRequestDto;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.http.*;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import java.util.List;
+
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@RunWith(SpringRunner.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+public class PostsApiControllerTest {
+
+    @LocalServerPort
+    private int port;
+
+    @Autowired
+    private TestRestTemplate restTemplate;
+
+    @Autowired
+    private PostsRepository postsRepository;
+
+    @Autowired
+    private WebApplicationContext context;
+
+    @Autowired
+    private MockMvc mvc;
+
+    @Before
+    public void setup(){
+        mvc = MockMvcBuilders
+                .webAppContextSetup(context)
+                .apply(springSecurity())
+                .build();
+    }
+
+    @After
+    public void tearDown() throws Exception{
+        postsRepository.deleteAll();
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    public void Posts_등록된다() throws Exception{
+        // given
+        String title = "title";
+        String content = "content";
+        PostsSaveRequestDto requestDto = PostsSaveRequestDto.builder()
+                                                                .title(title)
+                                                                .content(content)
+                                                                .author("author")
+                                                                .build();
+
+        String url = "http://localhost:"+ port + "/api/v1/posts";
+
+        //when
+        mvc.perform(post(url)
+            .contentType(MediaType.APPLICATION_JSON_UTF8)
+            .content(new ObjectMapper().writeValueAsString(requestDto))).andExpect(status().isOk());
+
+        //then
+        List<Posts> all = postsRepository.findAll();
+        assertThat(all.get(0).getTitle()).isEqualTo(title);
+        assertThat(all.get(0).getContent()).isEqualTo(content);
+    }
+    @Test
+    @WithMockUser(roles = "USER")
+    public void Posts_수정된다() throws Exception{
+        // given
+        Posts savedPosts = postsRepository.save(Posts.builder()
+                                                        .title("title")
+                                                        .content("content")
+                                                        .author("author")
+                                                        .build());
+
+        Long updateId = savedPosts.getId();
+        String expectedTitle = "title2";
+        String expectedContent = "content2";
+
+        PostsUpdateRequestDto requestDto = PostsUpdateRequestDto.builder()
+                                                                    .title(expectedTitle)
+                                                                    .content(expectedContent)
+                                                                    .build();
+
+        String url = "http://localhost:"+ port + "/api/v1/posts/" + updateId;
+
+        //when
+        mvc.perform(put(url)
+                .contentType(MediaType.APPLICATION_JSON_UTF8)
+                .content(new ObjectMapper().writeValueAsString(requestDto))).andExpect(status().isOk());
+
+        //then
+
+        List<Posts> all = postsRepository.findAll();
+        assertThat(all.get(0).getTitle()).isEqualTo(expectedTitle);
+        assertThat(all.get(0).getContent()).isEqualTo(expectedContent);
+    }
+
+}
+
 ```
 **소스코드 해석**     
 ```java   
