@@ -57,8 +57,11 @@ spring-security-oauth2-autoconfigure
     
 **application-oauth.properties**    
 ```
-맥북에서 가져오자  
-```
+spring.security.oauth2.client.registration.google.client-id=692886957287-663ep6r6ds8ee0oukr9f5mrqof57k6bj.apps.googleusercontent.com
+spring.security.oauth2.client.registration.google.client-secret=pVQcqYjwp_7fYyYdOJfkd5rk
+spring.security.oauth2.client.registration.google.scope=profile,email
+```    
+**관점 포인트**   
 ```
 scope=profile,email
 ```
@@ -97,6 +100,57 @@ application-oauth.properties
 
 **User**
 ```java
+package com.jojoldu.book.springboot.domain.user;
+
+import com.jojoldu.book.springboot.domain.BaseTimeEntity;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import javax.persistence.*;
+
+@Getter
+@NoArgsConstructor
+@Entity
+public class User extends BaseTimeEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false)
+    private String email;
+
+    @Column
+    private String picture;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
+
+    @Builder
+    public User(String name, String email, String picture, Role role){
+        this.name = name;
+        this.email = email;
+        this.picture = picture;
+        this.role = role;
+    }
+
+    public User update(String name, String picture){
+        this.name = name;
+        this.picture = picture;
+
+        return this;
+    }
+
+    public String getRoleKey(){
+        return this.role.getKey();
+    }
+}
+
 ```
 
 **소스코드 해석**
@@ -112,6 +166,20 @@ application-oauth.properties
 
 **Role**
 ```java
+package com.jojoldu.book.springboot.domain.user;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
+public enum Role {
+    GUEST("ROLE_GUEST", "손님"),
+    USER("ROLE_USER", "일반 사용자");
+
+    private final String key;
+    private final String title;
+}
 
 ```
 **스프링 시큐리티에서는 권한 코드에 항상 ROLE_이 앞에 있어야 합니다.**      
@@ -120,6 +188,15 @@ application-oauth.properties
 
 **UserRepository**
 ```java
+package com.jojoldu.book.springboot.domain.user;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByEmail(String email);
+}
 
 ```
 **소스코드 해석**
@@ -150,10 +227,41 @@ spring-boot-starter-oauth2-client
 ```config.auth``` 패키지를 생성합니다.         
 앞으로 **시큐리티 관련 클래스는 모두 이곳에 담는다**고 보면 될 것 같습니다.     
     
-그리고 SpringConfig 클래스를 생성해줍시다.   
+그리고 SecurityConfig 클래스를 생성해줍시다.   
 
-**SpringConfig**
+**SecurityConfig**
 ```java
+package com.jojoldu.book.springboot.config.auth;
+
+import com.jojoldu.book.springboot.domain.user.Role;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+
+@RequiredArgsConstructor
+@EnableWebSecurity
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+    private final CustomOAuth2UserService customOAuth2UserService;
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception{
+        http
+                .csrf().disable().headers().frameOptions().disable().and()
+                .authorizeRequests()
+                .antMatchers("/","/css/**","/images/**","/js/**","/h2-console/**", "/profile").permitAll()
+                .antMatchers("/api/v1/**").hasRole(Role.USER.name())
+                .anyRequest().authenticated()
+                .and()
+                .logout()
+                .logoutSuccessUrl("/")
+                .and()
+                .oauth2Login()
+                .userInfoEndpoint()
+                .userService(customOAuth2UserService);
+
+    }
+}
 ```
 **소스코드 해석**
 ```java
@@ -206,6 +314,59 @@ _____________________________________________________________
       
 **CustomOAuth2UserService**    
 ```java
+package com.jojoldu.book.springboot.config.auth;
+
+import com.jojoldu.book.springboot.config.auth.dto.OAuthAttributes;
+import com.jojoldu.book.springboot.config.auth.dto.SessionUser;
+import com.jojoldu.book.springboot.domain.user.User;
+import com.jojoldu.book.springboot.domain.user.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.stereotype.Service;
+
+import javax.servlet.http.HttpSession;
+import java.util.Collections;
+
+@RequiredArgsConstructor
+@Service
+public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
+    private final UserRepository userRepository;
+    private final HttpSession httpSession;
+
+    @Override
+    public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+        OAuth2UserService delegate = new DefaultOAuth2UserService();
+        OAuth2User oAuth2User = delegate.loadUser(userRequest);
+
+        String registrationId = userRequest.getClientRegistration().getRegistrationId();
+        String userNameAttributeName = userRequest.getClientRegistration().getProviderDetails()
+                .getUserInfoEndpoint().getUserNameAttributeName();
+
+        OAuthAttributes attributes = OAuthAttributes.of(registrationId, userNameAttributeName, oAuth2User.getAttributes());
+
+        User user = saveOrUpdate(attributes);
+        httpSession.setAttribute("user", new SessionUser(user));
+
+        return new DefaultOAuth2User(Collections.singleton(new SimpleGrantedAuthority(user.getRoleKey())),
+                attributes.getAttributes(),
+                attributes.getNameAttributeKey());
+    }
+
+    private User saveOrUpdate(OAuthAttributes attributes){
+        User user = userRepository.findByEmail(attributes.getEmail())
+                .map(entity -> entity.update(attributes.getName(), attributes.getPicture()))
+                .orElse(attributes.toEntity());
+
+        return userRepository.save(user);
+    }
+}
+
 ```
 **소스코드 해석**
 ```java
@@ -259,6 +420,56 @@ CustomOAuth2UserService 클래스까지 생성되었다면 OAuthAttributes 클�
 
 **OAuthAttributes**     
 ```java   
+package com.jojoldu.book.springboot.config.auth.dto;
+
+import com.jojoldu.book.springboot.domain.user.Role;
+import com.jojoldu.book.springboot.domain.user.User;
+import lombok.Builder;
+import lombok.Getter;
+
+import java.util.Map;
+
+@Getter
+public class OAuthAttributes {
+    private Map<String, Object> attributes;
+    private String nameAttributeKey;
+    private String name;
+    private String email;
+    private String picture;
+
+    @Builder
+    public OAuthAttributes(Map<String, Object> attributes, String nameAttributeKey, String name, String email, String picture){
+        this.attributes = attributes;
+        this.nameAttributeKey = nameAttributeKey;
+        this.name = name;
+        this.email = email;
+        this.picture = picture;
+    }
+
+    public static OAuthAttributes of(String registrationId, String userNameAttributeName, Map<String, Object> attributes){
+        System.out.println("registration="+registrationId);
+        return ofGoogle(userNameAttributeName, attributes);
+    }
+    private static OAuthAttributes ofGoogle(String userNameAttributeName, Map<String, Object> attributes){
+        return OAuthAttributes.builder()
+                .name((String) attributes.get("name"))
+                .email((String) attributes.get("email"))
+                .picture((String) attributes.get("picture"))
+                .attributes(attributes)
+                .nameAttributeKey(userNameAttributeName)
+                .build();
+    }
+
+    public User toEntity(){
+        return User.builder()
+                .name(name)
+                .email(email)
+                .picture(picture)
+                .role(Role.GUEST)
+                .build();
+    }
+}
+
 ```   
 **소스코드 해석**
 ```java
@@ -276,6 +487,27 @@ OAuthAttributes 클래스 생성이 끝났으면 같은 패키지에 SessionUser
    
 **SessionUser**
 ```java
+package com.jojoldu.book.springboot.config.auth.dto;
+
+import com.jojoldu.book.springboot.domain.user.User;
+import lombok.Getter;
+
+import java.io.Serializable;
+
+@Getter
+public class SessionUser implements Serializable {
+
+    private String name;
+    private String email;
+    private String picture;
+
+    public SessionUser(User user){
+        this.name = user.getName();
+        this.email = user.getEmail();
+        this.picture = user.getPicture();
+    }
+}
+
 ```
 SessionUser에는 인증된 사용자 정보만 필요합니다.         
 그 외에 필요한 정보들은 없으니 name, email, picture 만 필드로 선언합니다.          
@@ -286,6 +518,51 @@ SessionUser에는 인증된 사용자 정보만 필요합니다.
 
 **index.mustache**    
 ```mustache  
+{{>layout/header}}
+    <h1>스프링 부트로 시작하는 웹 서비스 ver.2</h1>
+    <div class="col-md-12">
+        <!-- 로그인 기능 영역 -->
+        <div class="row">
+            <div class="col-md-6">
+                <a href="/posts/save" role="button" class="btn btn-primary">글 등록</a>
+                {{#userName}}
+                    Looged in as : <span id="user">{{userName}}</span>
+                    <a href="/logout" class="btn btn-info active" role="button">Logout</a>
+                {{/userName}}
+                {{^userName}}
+                    <a href="/oauth2/authorization/google" class="btn btn-success active" role="button">
+                        Google Login
+                    </a>
+                    <a href="/oauth2/authorization/naver" class="btn btn-secondary active" role="button">
+                        Naver Login
+                    </a>
+                {{/userName}}
+            </div>
+        </div>
+    </div>
+    <br>
+    <!-- 목록 출력 영역 -->
+    <table class="table table-horizontal table-bordered">
+        <thead class="thead-string">
+            <tr>
+                <th>게시글번호</th>
+                <th>제목</th>
+                <th>작성자</th>
+                <th>최종수정일</th>
+            </tr>
+        </thead>
+        <tbody id="tbody">
+            {{#posts}}
+                <tr>
+                    <td>{{id}}</td>
+                    <td><a href="/posts/update/{{id}}">{{title}}</a></td>
+                    <td>{{author}}</td>
+                    <td>{{modifiedDate}}</td>
+                </tr>
+            {{/posts}}
+        </tbody>
+    </table>
+{{>layout/footer}}
 ```   
 **소스코드 해석**
 ```mustache
@@ -317,6 +594,50 @@ a href = "/oauth2/authorization/google"
 
 **IndexController**
 ```java
+package com.jojoldu.book.springboot.web;
+
+import com.jojoldu.book.springboot.config.auth.LoginUser;
+import com.jojoldu.book.springboot.config.auth.dto.SessionUser;
+import com.jojoldu.book.springboot.service.posts.PostsService;
+import com.jojoldu.book.springboot.web.dto.PostsResponseDto;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+@RequiredArgsConstructor
+@Controller
+public class IndexController {
+
+    private final PostsService postsService;
+    private final HttpSession httpSession;
+    
+    @GetMapping("/")
+    public String index(Model model){
+        
+        model.addAttribute("posts", postsService.findAllDesc());
+        Session User user= (SessionUser) httpSession.getAttribute("user");
+        if(user != null){
+            model.addAttribute("userName", user.getName());
+        }
+        return "index";
+    }
+
+    @GetMapping("/posts/save")
+    public String postsSave(){
+        return "posts-save";
+    }
+
+    @GetMapping("/posts/update/{id}")
+    public String postsUpdate(@PathVariable Long id, Model model){
+
+        PostsResponseDto dto = postsService.findById(id);
+        model.addAttribute("post",dto);
+        return "posts-update";
+    }
+}
+
 ```
 **소스코드 해석**
 ```java
@@ -347,6 +668,17 @@ Session user = (SessionUser) httpSession.getAttribute("user");
 
 **@LoginUser**
 ```java
+package com.jojoldu.book.springboot.config.auth;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Target(ElementType.PARAMETER)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface LoginUser {
+}
 
 ```
 
@@ -359,10 +691,12 @@ Session user = (SessionUser) httpSession.getAttribute("user");
 * 이 외에도 클래스 선언문에 쓸 수 있는 TYPE등이 있습니다.      
 ______________________________________________________________________________
 @Retention(RetentionPolicy.RUNTIME)     
+
 * 어노테이션의 범위(?)라고 할 수 있겠습니다.     
 * 어떤 시점까지 어노테이션이 영향을 미치는지 결정합니다.    
 ______________________________________________________________________________
 @interface 
+
 * 이 파일을 어노테이션 클래스로 지정합니다.       
 * LoginUser 라는 이름을 가진 어노테이션이 생성되었다고 보면 됩니다.     
 ```
@@ -376,6 +710,38 @@ ______________________________________________________________________________
    
 **LoginUserArgumentResolver**   
 ```java
+package com.jojoldu.book.springboot.config.auth;
+
+import com.jojoldu.book.springboot.config.auth.dto.SessionUser;
+import lombok.RequiredArgsConstructor;
+import org.springframework.core.MethodParameter;
+import org.springframework.stereotype.Component;
+import org.springframework.web.bind.support.WebDataBinderFactory;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.method.support.ModelAndViewContainer;
+
+import javax.servlet.http.HttpSession;
+
+@RequiredArgsConstructor
+@Component
+public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver {
+
+    private final HttpSession httpSession;
+
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) {
+        boolean isLoginUserAnnotation = parameter.getParameterAnnotation(LoginUser.class) != null;
+        boolean isUserClass = SessionUser.class.equals(parameter.getParameterType());
+        return isLoginUserAnnotation && isUserClass;
+    }
+
+    @Override
+    public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
+        return httpSession.getAttribute("user");
+    }
+}
+
 ```
 
 **소스코드 해석**
@@ -402,6 +768,27 @@ config 패키지에 ```WebConfig``` 클래스를 생성
 
 **WebConfig**
 ```java
+package com.jojoldu.book.springboot.config;
+
+import com.jojoldu.book.springboot.config.auth.LoginUserArgumentResolver;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.List;
+
+@RequiredArgsConstructor
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+    private final LoginUserArgumentResolver loginUserArgumentResolver;
+
+    @Override
+    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> argumentResolvers){
+        argumentResolvers.add(loginUserArgumentResolver);
+    }
+}
+
 ``` 
 ```HandlerMethodArgumentResovler```는 항상              
 ```WebMvcConfigure``` 의 ```addArgumentResolvers()```를 통해 추가해야 합니다.            
@@ -412,6 +799,48 @@ config 패키지에 ```WebConfig``` 클래스를 생성
      
 **IndexController**    
 ```java
+package com.jojoldu.book.springboot.web;
+
+import com.jojoldu.book.springboot.config.auth.LoginUser;
+import com.jojoldu.book.springboot.config.auth.dto.SessionUser;
+import com.jojoldu.book.springboot.service.posts.PostsService;
+import com.jojoldu.book.springboot.web.dto.PostsResponseDto;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+@RequiredArgsConstructor
+@Controller
+public class IndexController {
+
+    private final PostsService postsService;
+
+    @GetMapping("/")
+    public String index(Model model, @LoginUser SessionUser user){
+        model.addAttribute("posts", postsService.findAllDesc());
+
+        if(user != null){
+            model.addAttribute("userName", user.getName());
+        }
+        return "index";
+    }
+
+    @GetMapping("/posts/save")
+    public String postsSave(){
+        return "posts-save";
+    }
+
+    @GetMapping("/posts/update/{id}")
+    public String postsUpdate(@PathVariable Long id, Model model){
+
+        PostsResponseDto dto = postsService.findById(id);
+        model.addAttribute("post",dto);
+        return "posts-update";
+    }
+}
+
 ```
 
 **소스코드 해석**
