@@ -310,9 +310,6 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 
 public interface PostsRepository extends JpaRepository<Posts,Long> {
-
-    @Query("SELECT p FROM Posts p ORDER BY p.id DESC")
-    List<Posts> findAllDesc();
 }
 ```   
 DAO를 JPA에서는 Repository라고 부르며 인터페이스로 생성한다.        
@@ -568,13 +565,6 @@ public class PostsService {
         Posts entity = postsRepository.findById(id).orElseThrow(() -> new
                 IllegalArgumentException("헤당 게시글이 없습니다. id="+id));
         return new PostsResponseDto(entity);
-    }
-
-    @Transactional(readOnly = true)
-    public List<PostsListResponseDto> findAllDesc(){
-        return postsRepository.findAllDesc().stream()
-                .map(PostsListResponseDto::new)
-                .collect(Collectors.toList());
     }
 
     @Transactional
