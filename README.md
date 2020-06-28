@@ -1,6 +1,8 @@
 # TIL_SPRINGBOOT_WITH_AWS
 이동욱님의 스프링 부트와 AWS로 혼자 구현하는 웹 서비스 공부
 
+http://ec2-15-165-207-236.ap-northeast-2.compute.amazonaws.com:8080/
+
 # 1. 학습 대상
 JAVA 선행 학습이 되어야 한다.     
 kwj1270 주관적으로 웹에 대한 기본 지식도 필요하다 생각(스프링 프레임워크)    
