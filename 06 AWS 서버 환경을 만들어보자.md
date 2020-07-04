@@ -63,8 +63,9 @@ https://aws.amazon.com/ko/
 ![AWS 가입7](https://user-images.githubusercontent.com/50267433/86503442-1bd20600-bde9-11ea-80ed-4463348b6431.jpg)    
 ![AWS 가입8](https://user-images.githubusercontent.com/50267433/86503445-22607d80-bde9-11ea-9acd-50715ee9e907.jpg)    
 ![AWS 가입9](https://user-images.githubusercontent.com/50267433/86503448-27bdc800-bde9-11ea-9d3a-8ddf1a46bdd1.PNG)    
-![AWS 가입10](https://user-images.githubusercontent.com/50267433/86503450-2be9e580-bde9-11ea-8a6b-247bfa1e8d3c.PNG)    
-
+![AWS 가입10](https://user-images.githubusercontent.com/50267433/86503450-2be9e580-bde9-11ea-8a6b-247bfa1e8d3c.PNG)      
+![AWS 가입11](https://user-images.githubusercontent.com/50267433/86503477-74a19e80-bde9-11ea-92c2-c4c7e59bb93b.PNG)     
+  
 
 
 ## 1.1. 소 주제
