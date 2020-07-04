@@ -54,6 +54,16 @@ https://aws.amazon.com/ko/
 
 이후 무료 계정 만들기를 선택하여 계정을 만들어줍시다.      
 
+![AWS 가입](https://user-images.githubusercontent.com/50267433/86503414-f3e2a280-bde8-11ea-9b4b-5005d38d55e4.PNG)   
+![AWS 가입2](https://user-images.githubusercontent.com/50267433/86503423-01982800-bde9-11ea-9a97-6b8e1145a245.PNG)    
+![AWS 가입3](https://user-images.githubusercontent.com/50267433/86503424-06f57280-bde9-11ea-98ab-5b7a8bcb5aff.PNG)    
+![AWS 가입4](https://user-images.githubusercontent.com/50267433/86503427-0c52bd00-bde9-11ea-95bd-bc7edfe8a81f.PNG)   
+![AWS 가입5](https://user-images.githubusercontent.com/50267433/86503434-12e13480-bde9-11ea-9528-da053250957f.PNG)    
+![AWS 가입6](https://user-images.githubusercontent.com/50267433/86503439-17a5e880-bde9-11ea-8024-65baea0254b6.jpg)    
+![AWS 가입7](https://user-images.githubusercontent.com/50267433/86503442-1bd20600-bde9-11ea-80ed-4463348b6431.jpg)    
+![AWS 가입8](https://user-images.githubusercontent.com/50267433/86503445-22607d80-bde9-11ea-9acd-50715ee9e907.jpg)    
+![AWS 가입9](https://user-images.githubusercontent.com/50267433/86503448-27bdc800-bde9-11ea-9d3a-8ddf1a46bdd1.PNG)    
+![AWS 가입10](https://user-images.githubusercontent.com/50267433/86503450-2be9e580-bde9-11ea-8a6b-247bfa1e8d3c.PNG)    
 
 
 
