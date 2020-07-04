@@ -65,34 +65,6 @@ https://aws.amazon.com/ko/
 ![AWS 가입9](https://user-images.githubusercontent.com/50267433/86503448-27bdc800-bde9-11ea-9d3a-8ddf1a46bdd1.PNG)    
 ![AWS 가입10](https://user-images.githubusercontent.com/50267433/86503450-2be9e580-bde9-11ea-8a6b-247bfa1e8d3c.PNG)      
 ![AWS 가입11](https://user-images.githubusercontent.com/50267433/86503477-74a19e80-bde9-11ea-92c2-c4c7e59bb93b.PNG)     
-  
-
-
-## 1.1. 소 주제
-### 1.1.1. 내용1
-```
-내용1
-```
-## 1.2. 소 주제
-### 1.2.1. 내용1
-```
-내용1
-```
-
-***
-# 2. 대주제
-> 인용
-## 2.1. 소 주제
-### 2.1.1. 내용1
-```
-내용1
-```   
-
-***
-# 3. 대주제
-> 인용
-## 3.1. 소 주제
-### 3.1.1. 내용1
-```
-내용1
-```
+     
+***    
+# 2. EC2 인스턴스 생성하기 
