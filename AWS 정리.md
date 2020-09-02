@@ -66,4 +66,23 @@ sudo yum install -y java-1.8.0-openjdk-devel.x86_64
 ```
 sudo yum install -y java-1.8.0-openjdk-devel.x86_64
 ```
-EC2 인스턴스의
+EC2 인스턴스의 자바 버전을 8로 설정
+```
+sudo /usr/sbin/alternatives --config java
+```
+```
+1.   자바7
+2.   자바8
+```
+이런식으로 뜰 텐데 자바8이 있는 번호 선택 -> 2번 선택   
+```
+sudo yum remove java-1.7.0-openjdk
+```
+자바7 삭제   
+```
+java -version
+```
+자바 버전 확인 -> 8이면 완벽    
+    
+## 타임존 변경   
+
