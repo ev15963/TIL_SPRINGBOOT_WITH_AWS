@@ -85,4 +85,41 @@ java -version
 자바 버전 확인 -> 8이면 완벽    
     
 ## 타임존 변경   
+EC2 서버의 기본 타임존은 UTC입니다.   
+이는 세계 표준 시간으로 한국의 시간대가 아닙니다. -> 9 시간 차이   
+이렇게 되면 서버에서 수행되는 Java 애플리케이션에서 생성되는 시간도 모두 9시간씩 차이가 나기 때문에 수정해야한다.   
+서버의 타임존을 한국 시간으로 변경하겠습니다.   
+    
+```
+sudo rm /etc/localtime
+sudo ln -s /usr/share/zoneinfo/Asia/Seoul /etc/localtime
+```
+정상적으로 수행되었다면 date 명령어로 타임존이 KST로 변경된 것을 확인할 수 있습니다.   
+    
+## Hostname 변경    
+여러 서버를 관리 중일 경우 IP만으로 어떤 서비스의 서버인지 확인이 어렵습니다.     
+그래서 각 서버가 어느 서비스인지 표현하기 위해 HOSTNAME을 변경하겠습니다.       
+다음 명령어로 편집 파일을 열어봅니다.   
+   
+```
+sudo vim /etc/sysconfig/network    
+```
+화면에서 노출되는 항목 중 HOSTNAME으로 되어 있는 부분을 **본인이 원하는 서비스명으로 변경합니다.**    
+```
+NETWORK=yes
+HOSTNAME=localhost.localdomain <- 여기
+NOZEROCONF=yes
+```
+```
+NETWORK=yes
+HOSTNAME=freelec-springboot2-webservice <- 여기  
+NOZEROCONF=yes
+```
+변경한 후 다음 명령어로 서버를 재부팅 합니다.   
+```
+sudo reboot
+```
+재부팅이 끝나고 나서 다시 접속해 보면 HOSTNAME이 잘 변경된 것을 확인할 수 있습니다.    
+
+
 
