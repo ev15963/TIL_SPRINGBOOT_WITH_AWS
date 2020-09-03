@@ -395,5 +395,164 @@ echo "> Git Pull"
 
 git pull
 ```
+로그를 남기고 최신버전으로 머지한다.   
+   
+___   
+     
+```sh
 
- 
+echo "> 프로젝트 Build 시작"
+
+./gradlew build
+```
+프로젝트를 빌드하여 jar 파일을 만든다.   
+   
+___
+   
+```sh
+echo "> step1 디렉토리로 이동"
+
+cd $REPOSITORY
+
+echo "> Build 파일복사"
+
+cp $REPOSITORY/$PROJECT_NAME/build/libs/*.jar $REPOSITORY/
+```
+jar 파일을 넣어둘 위치로 이동하고   
+프로젝트 디렉토리에 생긴 jar 파일을 앞서 이동한 위치에 복사한다.   
+즉, ```프로젝트디렉토리/프로젝트/jar 파일```을 ```프로젝트디렉토리/```로 뺀다. (프로젝트 밖으로 뺀것이다 && 프로젝트랑 동일 위치)   
+      
+___
+   
+```sh
+echo "현재 구동중인 애플리케이션 pid 확인"
+
+CURRENT_PID=$(pgrep -f ${PROJECT_NAME}*.jar)
+
+echo "현재 구동중인 애플리케이션 pid: $CURRENT_PID"
+
+if [ -z "$CURRENT_PID" ]; then
+	echo "> 현재 구동중인 애플리케이션이 없으므로 종료하지 않습니다"
+else
+	echo "> kill -15 $CURRENT_PID"
+	kill -15 $CURRENT_PID
+	sleep 5
+fi
+```
+이미 구동중이라면 해당 PID를 얻어서 kill 하고 아니면 놔둔다.   
+kill -15 는 kill -9 에 비해 권장되는 방법으로 kil -9는 강제종료이며
+kill -15 는 응답 요청 종료라고 보면된다.    
+   
+___
+   
+```sh
+echo "> 새 애플리케이션 배포"
+
+JAR_NAME=$(ls -tr $REPOSITORY/ | grep *.jar | tail -n 1)
+```
+* 새로 실행할 jar 파일명을 찾습니다.   
+* 여러개가 있을 수 있으므로 ```tail -n 1```가장 나중에 생긴 jar 파일명을 가져옵니다.   
+
+___
+
+```sh
+echo "> JAR NAME: $JAR_NAME"
+
+nohup java -jar $REPOSITORY/$JAR_NAME 2>&1 &
+```
+실행할 jar 명을 출력하고   
+* 찾은 jar 파일명으로 해당 jar 파일을 nohup으로 실행합니다.   
+* 내장 톰캣만으로 서버 실행이됩니다.  
+* 일반적으로 터미널 종료시 같이 종료되는데 nohup java -jar 이런식으로 실행을 하면 터미널이 끊겨도 종료되지 않습니다.   
+* Dspring 옵션으로 active는 real, 그리고 나머지 프로퍼티도 실행되게끔 클래스 패스에 넣어줍니다.      
+* 마지막은 ```2>&1 &``` 잘 모르겠습니다.       
+   
+___   
+   
+3. 이렇게 생성한 스크립트에 실행 권한을 추가합니다. ```chmod +x ./deploy.sh```   
+4. ```ll```로 확인해보면 실행 권한이 추가되었음을 알 수 있습니다.   
+5. ```./deploy.sh``` 명령어로 실행시킵니다.   
+6. 로그가 출력되면 애플리케이션이 실행됩니다.   
+7. ```vim nohup.out``` 명령어로 nohup 파일을 열어 로그를 확인해봅니다.   
+8. nohup 파일 맨 마지막에 보면 ```APPLICATION FAILED TO START``` 가 뜨면서 실패했음을 알 수 있다.  
+9. 또한 내용을 보면 ClientRegistrationRepository를 찾을 수 없다는 에러가 발생했다.   
+10. 필자 기준 여러 액션에 관련된 프로퍼티를 만들고 oauth를 사용하다 보니 외부 시큐리티를 등록해주어야 했다.   
+
+## 외부 Security 파일 등록하기   
+ClientRegistrationRepository를 생성하려면 ClientId 와 ClientSecret이 필수입니다.   
+로컬PC에서 실행할때는 application-oauth-properties가 있어서 괜찮았지만      
+해당 파일을 우리는 **```.gitignore```로 지정해서 깃허브에 올라왔을 때는 제외되어 올라왔고 우리는 없는 상태로 배포했습니다.**        
+   
+**그래서 우리는 서버에 디렉토리를 만들고 해당 디렉토리에 따로 ```application-oauth-properties``` 를 만들어주겠습니다.**   
+1. 기존 저희 위치인 ```/home/ec-user/app/step1```이 아닌 ```/home/ec2-user/app``` 으로 이동하겠습니다. 
+2. ```cd /home/ec2-user/app```   
+3. 필요한 프로피터를 만들어줍니다 ```vim /home/ec2-user/app/application-oauth-properties```  
+4. 기존에 저장된 내용들을 그대로 복사 붙여넣기 해주신후 ```:wq```로 저장합니다.  
+5. 그리고 방금 저장한 프로퍼티를 사용하도록 ```deploy.sh``` 파일을 수정하겠습니다.   
+6. ```vim ~/app/step1/deploy.sh``` 입력   
+7. 아래와 같이 수정
+```sh
+nohup java -jar \
+	-Dspring.config.location=classpath:/application.properties,/home/ec2-user/app/application-oauth.properties \
+	-Dspring.profiles.active=real \
+	$REPOSITORY/$JAR_NAME 2>&1 &
+```
+* 스프링 설정 파일 위치를 지정하여 ```classpath:/application.properties``` 와   
+OAuth 설정을 담은 ```application-oauth.properties``` 위치를 지정합니다.   
+* ```classpath:/```는 jar 안에 있는 resource 디렉토리를 기준으로 경로가 생성됩니다.   
+* ```application-oauth.properties```는 외부에 있기 때문에 ```/home/ec2-user/app/```같은 절대경로를 사용합니다.     
+   
+**전체 코드**
+```sh
+#!/bin/bash
+
+REPOSITORY=/home/ec2-user/app/step1
+PROJECT_NAME=freelec-springboot2-webservice
+
+cd $REPOSITORY/$PROJECT_NAME/
+
+echo "> Git Pull"
+
+git pull
+
+echo "> 프로젝트 Build 시작"
+
+./gradlew build
+
+echo "> step1 디렉토리로 이동"
+
+cd $REPOSITORY
+
+echo "> Build 파일복사"
+
+cp $REPOSITORY/$PROJECT_NAME/build/libs/*.jar $REPOSITORY/
+
+echo "현재 구동중인 애플리케이션 pid 확인"
+
+CURRENT_PID=$(pgrep -f ${PROJECT_NAME}*.jar)
+
+echo "현재 구동중인 애플리케이션 pid: $CURRENT_PID"
+
+if [ -z "$CURRENT_PID" ]; then
+	echo "> 현재 구동중인 애플리케이션이 없으므로 종료하지 않습니다"
+else
+	echo "> kill -15 $CURRENT_PID"
+	kill -15 $CURRENT_PID
+	sleep 5
+fi
+
+echo "> 새 애플리케이션 배포"
+
+JAR_NAME=$(ls -tr $REPOSITORY/ | grep *.jar | tail -n 1)
+
+echo "> JAR NAME: $JAR_NAME"
+
+nohup java -jar \
+	-Dspring.config.location=classpath:/application.properties,/home/ec2-user/app/application-oauth.properties \
+	-Dspring.profiles.active=real \
+	$REPOSITORY/$JAR_NAME 2>&1 &
+```
+8. 수정이 완료되었다면 ```./deploy.sh``` 또는 ```~/app/step1/deploy.sh```입력하여 쉡 스크립트를 실행합니다.   
+9. 그럼 오타가 있지 않은 이상 정상적으로 실행될 것입니다.     
+
+## 스프링 부트 프로젝트로 RDS 접근하기  
