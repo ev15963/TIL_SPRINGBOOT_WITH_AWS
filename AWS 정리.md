@@ -312,6 +312,75 @@ RDS의 MaxConnection은 인스턴스 사양에 따라 자동으로 정해집니�
  ```chmod +x ./gradlew```로 실행 권한을 얻어 다시 수행하면 ㄷ뵈니다.   
 10. 참고로 그래들을 다운 받지 않았는데 사용 가능한 이유는 Wrapper 파일 덕분이다. -> TIL_FIRST_SPRINGBOOT 참고바람     
 
+## 배포 스크립트 만들기   
+배포 : 작성한 코드를 실제 서버에 반영하는 것       
+   
+여러 배포의 의미들      
+* git clone 혹은 git pull을 통해서 새버전의 프로젝트를 받음   
+* Gradle이나 Maven을 통해 프로젝트 테스트와 빌드   
+* EC2 서버에서 해당 프로젝트 실행 및 재실행    
+      
+앞선 과정에서는 배포할때마다 git clone 부터 다시 반복해주어야 한다는 문제점이 있다.      
+즉, **배포할 때마다 개발자가 하나하나 명령어를 실행**하는 것이고 불편함이 많아집니다.      
+그래서 이를 **쉡 스크립트로 작성해 스크립트만 실행하면 앞의 과정이 진행되도록 하겠습니다.** 
+  
+쉘 스크립트 파일의 확장자는 ```.sh```
 
+1. ```vim ~/app/step1/deploy.sh``` 명령어 입력
+2. 아래와 같은 스크립트를 넣어준다.   
 
- 
+```sh
+#!/bin/bash
+
+REPOSITORY=/home/ec2-user/app/step1
+PROJECT_NAME=freelec-springboot2-webservice
+
+cd $REPOSITORY/$PROJECT_NAME/
+
+echo "> Git Pull"
+
+git pull
+
+echo "> 프로젝트 Build 시작"
+
+./gradlew build
+
+echo "> step1 디렉토리로 이동"
+
+cd $REPOSITORY
+
+echo "> Build 파일복사"
+
+cp $REPOSITORY/$PROJECT_NAME/build/libs/*.jar $REPOSITORY/
+
+echo "현재 구동중인 애플리케이션 pid 확인"
+
+CURRENT_PID=$(pgrep -f ${PROJECT_NAME}*.jar)
+
+echo "현재 구동중인 애플리케이션 pid: $CURRENT_PID"
+
+if [ -z "$CURRENT_PID" ]; then
+	echo "> 현재 구동중인 애플리케이션이 없으므로 종료하지 않습니다"
+else
+	echo "> kill -15 $CURRENT_PID"
+	kill -15 $CURRENT_PID
+	sleep 5
+fi
+
+echo "> 새 애플리케이션 배포"
+
+JAR_NAME=$(ls -tr $REPOSITORY/ | grep *.jar | tail -n 1)
+
+echo "> JAR NAME: $JAR_NAME"
+
+nohup java -jar \
+	-Dspring.config.location=classpath:/application.properties,/home/ec2-user/app/application-oauth.properties,/home/ec2-user/app/application-real-db.properties \
+	-Dspring.profiles.active=real \
+	$REPOSITORY/$JAR_NAME 2>&1 &
+```
+___
+```sh
+REPOSITORY=/home/ec2-user/app/step1
+PROJECT_NAME=freelec-springboot2-webservice
+```
+
