@@ -378,9 +378,22 @@ nohup java -jar \
 	-Dspring.profiles.active=real \
 	$REPOSITORY/$JAR_NAME 2>&1 &
 ```
+    
 ___
+    
 ```sh
 REPOSITORY=/home/ec2-user/app/step1
 PROJECT_NAME=freelec-springboot2-webservice
 ```
+* REPOSITORY 라는 변수를 만들고 프로젝트를 배포할 디렉토리 선정 -> ```/home/ec2-user/app/step1```
+* PROJECT_NAME 배포할 프로젝트의 이름을 저장 -> 후에 해당 프로젝트로 이동하기 위해서 
+   
+___
 
+```sh
+echo "> Git Pull"
+
+git pull
+```
+
+ 
