@@ -555,6 +555,129 @@ nohup java -jar \
 8. 수정이 완료되었다면 ```./deploy.sh``` 또는 ```~/app/step1/deploy.sh```입력하여 쉡 스크립트를 실행합니다.   
 9. 그럼 오타가 있지 않은 이상 정상적으로 실행될 것입니다.     
 
-## 스프링 부트 프로젝트로 RDS 접근하기  
-학습기준으로 RDS MariaDB를 사용중입니다.   
-MariaDB에서 
+# 스프링 부트 프로젝트로 RDS 접근하기    
+학습기준으로 RDS MariaDB를 사용중입니다.        
+MariaDB에서 스프링부트 프로젝트를 실행하기 위해서는 몇가지 작업이 더 필요합니다.        
+       
+* 테이블 생성 : H2에서 자동 생성해주던 테이블들을 MariaDB에선 직접 쿼리를 이용해 생성합니다.       
+* 프로젝트 설정 : 자바 프로젝트가 MariaDB에 접근하려면 데이터베이스 드라이버가 필요합니다.         
+MariaDB에서 사용 가능한 드라이버를 프로젝트에 추가합니다.        
+* EC2-리눅스 설정 : 데이터베이스의 접속 정보는 중요하게 보호해야 할 정보입니다.          
+공개되면 외부에서 데이터를 모두 가져갈 수 있기 때문입니다.           
+프로젝트 안에 접속 정보를 갖거 있다면 깃허브와 같이 오픈된 공간에서 누구나 해킹할 위험이 있습니다.         
+EC2 서버 내부에서 접속 정보를 관리하도록 설정합니다.     
+
+## RDS 테이블 생성      
+1. JPA가 사용될 엔티티 테이블   
+2. 스프링 세션이 사용될 테이블    
+    
+위 2가지 테이블을 생성할 것입니다.        
+**JPA가 사용할 테이블은 테스트 코드 수행 시 로그로 생성되는 쿼리를 사용하면 됩니다.**       
+기존 절차대로 진행했다면 테스트 코드 수행시 발생하는 로그에서 SQL쿼리문을 가져오면 됩니다.     
+
+1. 데이터베이스를 사용해야하므로 콘솔창에 ```use 데이터베이스```를 사용해서 데이터베이스 사용을 선언합니다.       
+	* ```use freelec_springboot2_webservice;```    
+2. 아래 쿼리문 2개를 콘솔창에 넣어줍니다.  
+```sql
+create table posts (id bigint not null auto_increment, created_date datetime, modified_date datetime, author varchar(255), content TEXT not null, title varchar(500) not null, primary key (id)) engine=InnoDB
+```
+```sql
+create table user (id bigint not null auto_increment, created_date datetime, modified_date datetime, email varchar(255) not null, name varchar(255) not null, picture varchar(255), role varchar(255) not null, primary key (id)) engine=InnoDB;
+```
+     
+___      
+   
+스프링 세션 테이블은 schema-mysql.sql 파일에서 확인할 수 있습니다.   
+1. 파일 검색 (Mac 기준 - Command Shift O)를 눌러줍니다.   
+2. schema-mysql.sql 검색합니다.  
+3. 아래와 같은 sql문이 있고 이를 기존 콘솔창에 추가합니다.   
+```sql
+CREATE TABLE SPRING_SESSION (
+	PRIMARY_ID CHAR(36) NOT NULL,
+	SESSION_ID CHAR(36) NOT NULL,
+	CREATION_TIME BIGINT NOT NULL,
+	LAST_ACCESS_TIME BIGINT NOT NULL,
+	MAX_INACTIVE_INTERVAL INT NOT NULL,
+	EXPIRY_TIME BIGINT NOT NULL,
+	PRINCIPAL_NAME VARCHAR(100),
+	CONSTRAINT SPRING_SESSION_PK PRIMARY KEY (PRIMARY_ID)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+CREATE UNIQUE INDEX SPRING_SESSION_IX1 ON SPRING_SESSION (SESSION_ID);
+CREATE INDEX SPRING_SESSION_IX2 ON SPRING_SESSION (EXPIRY_TIME);
+CREATE INDEX SPRING_SESSION_IX3 ON SPRING_SESSION (PRINCIPAL_NAME);
+
+CREATE TABLE SPRING_SESSION_ATTRIBUTES (
+	SESSION_PRIMARY_ID CHAR(36) NOT NULL,
+	ATTRIBUTE_NAME VARCHAR(200) NOT NULL,
+	ATTRIBUTE_BYTES BLOB NOT NULL,
+	CONSTRAINT SPRING_SESSION_ATTRIBUTES_PK PRIMARY KEY (SESSION_PRIMARY_ID, ATTRIBUTE_NAME),
+	CONSTRAINT SPRING_SESSION_ATTRIBUTES_FK FOREIGN KEY (SESSION_PRIMARY_ID) REFERENCES SPRING_SESSION(PRIMARY_ID) ON DELETE CASCADE
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+```
+RDS에 필요한 테이블은 모두 생성했으니 프로젝트로 넘어갑니다.    
+
+## 프로젝트 설정   
+```build.gradle```에 MariaDB 관려 드라이버를 추가해줍니다.  
+```gradle
+    compile('org.mariadb.jdbc:mariadb-java-client')
+```
+
+그리고 서버에서 구동될 환경을 하나 구성합니다.(properties)     
+1. ```src/main/resources/```에 ```application-real.properties``` (profile 이 real)
+2. 실제 운영될 환경이기 때문에 보안/로그상 이슈가 될 만한 설정들을 모두 제거하면 RDS 환경 profile 설정이 추가됩니다.   
+    
+**application-real.properties**   
+```properties
+spring.profiles.include=oauth,real-db
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL5Dialect
+spring.session.store-type=jdbc
+```   
+모든 설정이 완료되었다면 깃허브로 푸시합니다.   
+
+## EC2 설정   
+OAuth 와 마찬가지로 RDS 접속 정보도 보호해야할 정보이니    
+EC2 서버에 ```/home/ec2-user/app/application-oauth.properties```를 만들었듯이    
+```/home/ec2-user/app/application-real-db.properties```를 만들어주도록 한다.     
+
+1. ec2 서버에 접속 
+2. ```vim ~/app/application-real-db.properties``` 명령어 입력    
+3. 아래와 같은 코드 입력     
+   
+**application-real-db.properties**   
+```properties
+spring.jpa.hibernate.ddl-auto=none
+spring.datasource.url=jdbc:mariadb://{RDS주소}:{포트명-기본 3306}/{db 이름}
+spring.datasource.username={db 계정}
+spring.datasource.password={db 비밀번호}
+spring.datasource.driver-class-name=org.mariadb.jdbc.Driver
+```
+```properties
+spring.jpa.hibernate.ddl-auto=none
+```
+우리가 실제 운영으로 사용될 테이블은 JPA의 자동생성을 해주면 안되므로 이러한 처리를 해줍니다.      
+만약 자동 생성을 했다면 기존 데이터가 날라가는 현상이 발생하므로 각별히 신경써야 합니다.     
+   
+___
+   
+마지막으로 사용할 프로퍼티를 만들었으므로 기존 ```deploy.sh```의 내용도 조금 수정해줍니다.   
+
+```sh
+nohup java -jar \
+	-Dspring.config.location=classpath:/application.properties,/home/ec2-user/app/application-oauth.properties,/home/ec2-user/app/application-real-db.properties \
+	-Dspring.profiles.active=real \
+	$REPOSITORY/$JAR_NAME 2>&1 &
+```
+* profile을 real로 주어 ```application-real-properties``` 을 활성화 시킵니다.       
+* ```application-real-properties``` 내용을 보면       
+```spring.profiles.include=oauth,real-db```를 가지고 있어 다른 프로필도 활성화 시켜 다른 프로퍼티도 사용가능해집니다.      
+* ```/home/ec2-user/app/application-real-db.properties``` 는 외부에 있는것이므로 설정파일에 추가시켜줍니다.     
+   
+이후 deploy.sh를 실행하고 nohup.out 으로 로그를 확인해봅니다. (성공 여부 판별)   
+```
+curl localhost:8080
+```
+또한 curl 명령어로 html 코드가 정상적으로 보인다면 성공입니다.    
+
+
+   
