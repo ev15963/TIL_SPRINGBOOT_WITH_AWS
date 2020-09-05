@@ -241,12 +241,165 @@ S3는 게시글을 쓸 때 나오는 첨부파일 등록을 구현할 때 많이
 S3가 생성되었으니 이제 이 S3로 배포 파일을 전달해보겠습니다.   
    
 ## 2.7. travis.yml 코드내용 추가     
+Travis CI에서 빌드하여 만든 Jar 파일을 S3에 올릴 수 있도록 ```.tavis.yml```에 다음 코드를 추가해줍니다.   
+   
+```yml
+before_deploy:
+  - zip -r freelec-springboot2-webservice *
+  - mkdir -p deploy # zip에 포함시킬 파일들을 담을 디렉토리 생성
+  - mv freelec-springboot2-webservice.zip deploy/freelec-springboot2-webservice.zip
 
+deploy:
+  - provider: s3
+    access_key_id: $AWS_ACCESS_KEY # Travis repo settings에 설정된 값
+    secret_access_key: $AWS_SECRET_KEY # Travis repo settings에 설정된 값
+    bucket: kwj1270-freelec-springboot-build # s3
+    region: ap-northeast-2
+    skip_cleanup: true
+    acl: private # zip 파일 접근을 private로
+    local_dir: deploy # before_deploy에서 생성한 디렉토리
+    wait-until-deployed: true
+```
+      
+**.travis.yml 전체 코드**
+```yml
+language: java
+jdk:
+  - openjdk8
+branches:
+  only:
+    - master
 
+# Travis CI 서버의 Home
+cache:
+  directories:
+    - '$HOME/.m2/repository'
+    - '$HOME/.gradle'
 
+script: "./gradlew clean build"
 
+before_deploy:
+  - zip -r freelec-springboot2-webservice *
+  - mkdir -p deploy # zip에 포함시킬 파일들을 담을 디렉토리 생성
+  - mv freelec-springboot2-webservice.zip deploy/freelec-springboot2-webservice.zip
 
+deploy:
+  - provider: s3
+    access_key_id: $AWS_ACCESS_KEY # Travis repo settings에 설정된 값
+    secret_access_key: $AWS_SECRET_KEY # Travis repo settings에 설정된 값
+    bucket: kwj1270-freelec-springboot-build # s3
+    region: ap-northeast-2
+    skip_cleanup: true
+    acl: private # zip 파일 접근을 private로
+    local_dir: deploy # before_deploy에서 생성한 디렉토리
+    wait-until-deployed: true
+    
+# CI 실행 완료 시 메일로 알람
+notifications:
+  email:
+    recipients:
+      - kwj1270@naver.com
+```
+   
+___
+   
+```yml
+before_deploy:
+  - zip -r freelec-springboot2-webservice *
+  - mkdir -p deploy # zip에 포함시킬 파일들을 담을 디렉토리 생성
+  - mv freelec-springboot2-webservice.zip deploy/freelec-springboot2-webservice.zip
+```
+```yml
+before_deploy:
+```
+* deploy 명령어가 실행되기 전에 수행합니다.
+  
+```yml
+  - zip -r freelec-springboot2-webservice *
+```
+* CodeDeploy는 Jar 파일은 인식하지 못하므로 ```Jar+기타 설정 파일```들을 모아 **압축**합니다.  
+* 그래야 CodeDeploy가 zip 파일을 인식하고 거기서 Jar 파일을 꺼내 사용가능합니다.   
+* 현재 위치의 모든 파일을 ```freelec-springboot2-webservice``` 이름으로 압축합니다.   
+* 명령어의 마지막 위치는 본인의 프로젝트 이름이어야 합니다.  
+   
+```yml
+  - mkdir -p deploy # zip에 포함시킬 파일들을 담을 디렉토리 생성
+```
+* deploy라는 디렉토리를 Travis CI가 실행 중인 위치에서 생성합니다.   
 
+```yml
+  - mv freelec-springboot2-webservice.zip deploy/freelec-springboot2-webservice.zip
+```
+* ```freelec-springboot2-webservice.zip``` 파일을 
+```deploy/freelec-springboot2-webservice.zip``` 로 이동시킵니다.   
+
+___   
+   
+```yml
+deploy:
+  - provider: s3
+    access_key_id: $AWS_ACCESS_KEY # Travis repo settings에 설정된 값
+    secret_access_key: $AWS_SECRET_KEY # Travis repo settings에 설정된 값
+    bucket: kwj1270-freelec-springboot-build # s3
+    region: ap-northeast-2
+    skip_cleanup: true
+    acl: private # zip 파일 접근을 private로
+    local_dir: deploy # before_deploy에서 생성한 디렉토리
+    wait-until-deployed: true
+```
+```yml
+deploy:
+```
+* S3로 파일 업로드 혹은 CodeDeploy로 배포 등 **외부 서비스와 연동될 행위들을 선언**합니다.    
+
+```yml
+    access_key_id: $AWS_ACCESS_KEY # Travis repo settings에 설정된 값
+    secret_access_key: $AWS_SECRET_KEY # Travis repo settings에 설정된 값
+```
+* Travis CI 페이지에서 지정한 변수와 값이 실행시 들어가진다.
+
+```yml
+    bucket: kwj1270-freelec-springboot-build # s3
+```
+* 앞서 생성한 S3의 버킷이름을 넣어준다.
+
+```yml
+    region: ap-northeast-2
+```
+* 지역을 입력 EC2 리전에 맞춰서 입력해주면 되는데 ```ap-northeast-2``` 는 아시아 태평양(서울)을 의미한다.   
+* 자세히 알고 싶다면 https://docs.aws.amazon.com/ko_kr/general/latest/gr/rande.html 
+
+```yml
+    skip_cleanup: true
+```
+* Travis CI가 빌드중에 디렉토리를 재설정하고 빌드중에 수행 된 모든 변경 사항을 삭제하지 않도록해준다.
+
+```yml
+    acl: private # zip 파일 접근을 private로
+```
+* zip 파일 접근을 private로 한다.   
+
+```yml
+    local_dir: deploy # before_deploy에서 생성한 디렉토리
+```
+* 해당 위치의 파일들만 S3로 전송합니다.     
+* 해당 코드는 before_deploy에서 생성한 deploy 디렉토리를 지정했습니다.     
  
- 
+```yml
+    wait-until-deployed: true
+```
+* deploy 가 진행되는 동안 기다린다.   
+   
+___
+   
+설정이 다 완료 되었다면 **깃허브로 푸시**합니다.       
+Travis CI에서 자동으로 빌드가 진행되는 것을 확인하고, 모든 빌드가 성공하는지 확인합니다.     
+   
+```
+Done. Your build exited with 0 
+```
+위와 같은 로그가 나온다면 Travis CI의 빌드가 성공한 것입니다.     
+그리고 S3 버킷을 가보면 업로드가 성공한 것을 확인할 수 있습니다.      
+   
+
 
