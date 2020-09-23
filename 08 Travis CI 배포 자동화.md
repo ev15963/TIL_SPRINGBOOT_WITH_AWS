@@ -426,7 +426,9 @@ AWS의 배포 시스템인 CodeDeploy를 이용하기 전에
 
 ### CodeDeploy 에이전트 설치   
 1. cmd 나 terminal 을 이용해서 EC2 서버에 접속   
-2. 
+2. `aws s3 cp s3://aws-codedeploy-ap-northeast-2/latest/install . --region ap-northeast-2` 입력    
+3. install 이란 파일에 CodeDeploy 에이전트가 설치되었다.   
+
 
 
 
