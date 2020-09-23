@@ -425,12 +425,26 @@ AWS의 배포 시스템인 CodeDeploy를 이용하기 전에
 5. 다시 인스턴스에 돌아와서 본인의 인스턴스 재부팅(마우스오른쪽 -> 인스턴스 상태 -> 재부팅)   
 
 ### CodeDeploy 에이전트 설치   
+AWS CodeDeploy 사용 설명서에 보면    
+EC2 각 인스턴스에 'CodeDeploy 에이전트'가 설치되어 실행중이어야 한다고 명시되어 있다.        
+
+'CodeDeploy 에이전트'는 CodeDeploy 를 이용한 배포를 진행할시 필히 설치해야하며        
+EC2 서버가 CodeDeploy 이벤트를 수신할 수 있도록 해주는 것이다.       
+   
 1. cmd 나 terminal 을 이용해서 EC2 서버에 접속   
 2. `aws s3 cp s3://aws-codedeploy-ap-northeast-2/latest/install . --region ap-northeast-2` 입력    
 3. install 이란 파일에 CodeDeploy 에이전트가 설치되었다.   
+4. `chmod +x ./install`를 이용하여 현재 디렉토리에 있는 `install` 에 실행권한을 추가한다.
+5. `sudo ./install auto`를 이용하여 install 파일로 설치를 진행합니다.   
+6. `sudo service codedeploy-agent statis`를 이용하여 Agent가 정상적으로 실행되고 있는지 상태검사를 합니다.
+7. `The AWS CodeDeploy agent is running as PID xxx` 메시지가 출력되면 정상입니다.
 
-
-
+* 만약 설치 중에 다음과 같은 에러가 발생한다면 루비라는 언어가 설치 안된 상태라서 그렇습니다.   
+   * `/usr/bin/env:ruby: No such file or directory
+   * 이럴 경우 `yum install`로 루비를 설치하면 됩니다.  
+      * `sudo yum install ruby`
+      
+### CodeDeploy를 위한 권한 생성       
 
 
 
