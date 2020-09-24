@@ -775,9 +775,64 @@ Travis CI는 특정 파일만 S3로 보내는 것이 불가능하고 디렉토�
 * `deploy` 디렉토리를 만든 뒤 `deploy/freelec-springboot2-webservice.zip`에 `before-deploy` 파일들을 복사합니다.    
 * 후에 `deploy :` S3로 인하여 `deploy/freelec-springboot2-webservice.zip` 파일만 가져갑니다.     
 
+## appspec.yml 수정  
+`appspec.yml` 파일에 다음 코드를 추가합니다. 'location', 'timeout', 'runas'   
+
 ```yml
+permissions:
+  - object: /
+    pattern: "**"
+    owner: ec2-user
+    group: ec2-user
+
+hooks:
+  AfterInstall:
+    - location: stop.sh # 엔진엑스와 연결되어 있지 않은 스프링 부트를 종료한다.
+      timeout: 60
+      runas: ec2-user
 ```
 
+**전체 코드**
+```yml
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /home/ec2-user/app/step2/zip/
+    overwriter: yes
+
+permissions:
+  - object: /
+    pattern: "**"
+    owner: ec2-user
+    group: ec2-user
+
+hooks:
+  ApplicationStart:
+    - location: deploy.sh
+      timeout: 60
+      runas: ec2-user
+```
+
+```yml
+permissions:
+  - object: /
+    pattern: "**"
+    owner: ec2-user
+    group: ec2-user
+```
+* CodeDeploy 에서 EC2 서버로 넘겨준 파일들을 모두 ec2-user 권한을 갖도록 합니다.   
+
+```yml
+hooks:
+  ApplicationStart:
+    - location: deploy.sh
+      timeout: 60
+      runas: ec2-user
+```
+* CodeDeploy 배포 단계에서 실행할 명령어를 지정합니다.   
+* ApplicationStart라는 단계에서 deploy.sh를 ec2-user 권한으로 실행하게 합니다.   
+* timeout:60 으로 스크립트 실행 60초 이상 수행되면 실패가 됩니다. (무한정 기다릴 수 없어야하므로)    
 
 
 
