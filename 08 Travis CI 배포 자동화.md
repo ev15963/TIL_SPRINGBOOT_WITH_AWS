@@ -838,8 +838,31 @@ hooks:
 Travis CI에서의 로그가 정상적인지   
 CodeDeploy 서비스에서 상태가 성공인지 확인하고   
 EC2 도메인을 입력해서 확인해봅시다.    
+     
+## 기타      
+실제 배포과정에서는       
+`build.gradle` 에서 `version '1.0.1-SNAPSHOT'` 과 같이 스냅샵 번호를 갱신시키면서 배포해줍니다.     
+    
+AWS가 지원하는 서비스에서는 오류가 발생했을 때 로그를 찾기 힘듭니다.       
+CodeDeploy에 관한 로그를 찾고자 한다면 `/opt/codedeploy-agent/deployment-root` 를 찾아보면 됩니다.       
+`/opt/codedeploy-agent/deployment-root` 디렉토리로 이동한뒤 목록을 확인해보면 다음과 같은 내용을 볼 수 있습니다.      
 
-## 기타     
-실제 배포과정에서는   
-`build.gradle` 에서 `version '1.0.1-SNAPSHOT'` 과 같이 스냅샵 번호를 갱신시키면서 배포해줍니다.   
+**/opt/codedeploy-agent/deployment-root**
+```
+05as6gfd4ewq5tr6q7-08d94b6c54z131r674q68t4q6 // 임의의 값을 넣었습니다
+deployment-instructions
+deployment-logs
+ongoing-deployment
+```
+* 맨위에 있는 디렉토리명은 **CodeDeploy ID** 입니다.   
+   * 사용자마다 고유한 ID이므로 각기 다른 ID값으로 기술되어 있습니다.  
+   * 해당 디렉토리에는 **배포한 단위별로 배포 파일들이 있습니다.**   
+   * 본인의 배포 파일이 정상적으로 왔는지 확인해볼 수 있습니다.   
+   
+* deployment-logs
+   * CodeDeploy 로그 파일입니다.   
+   * CodeDeploy 로 이루어지는 배포 내용중 표준 입/출력 내용은 모두 여기에 담겨있습니다.  
+   * 작성한 echo 내용도 모두 표기됩니다.   
+   
+
 
