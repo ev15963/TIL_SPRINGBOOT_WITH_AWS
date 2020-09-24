@@ -317,7 +317,7 @@ before_deploy:
 ```yml
   - zip -r freelec-springboot2-webservice *
 ```
-* CodeDeploy는 Jar 파일은 인식하지 못하므로 ```Jar+기타 설정 파일```들을 모아 **압축**합니다.  
+* CodeDeploy는 Jar 파일은 인식하지 못하므로 ```Jar + 기타 설정 파일```들을 모아 **압축**합니다.  
 * 그래야 CodeDeploy가 zip 파일을 인식하고 거기서 Jar 파일을 꺼내 사용가능합니다.   
 * 현재 위치의 모든 파일을 ```freelec-springboot2-webservice``` 이름으로 압축합니다.   
 * 명령어의 마지막 위치는 본인의 프로젝트 이름이어야 합니다.  
@@ -623,6 +623,127 @@ cd /home/ec2-user/app/step2/zip
 ll
 ```
 파일 목록이 정상적으로 있다면 Travis CI, S3, CodeDeploy가 연동되어 배포까지 이루어진것을 알 수 있습니다.     
+```
+README.md
+appspec.yml
+build
+build.gradle
+gradle
+gradlew
+gradlew.bat
+schema.sql
+settings.gradle
+src
+```
 
 # 3. 배포 자동화 구성  
+현재 Travis CI, S3, CodeDeploy 연동까지 구현하여        
+```Jar파일 + 기타 설정 파일```들을 모아 압축한 zip 폴더까지 EC2로 가져왔습니다. (프로젝트 내용이긴하다.)           
+(S3에서 CodeDeploy로 넘어올떄 Jar 파일을 인식하지 못하므로 JAR + 기타 설정파일을 zip하여 가져온 것입니다.)       
+(Jar는 build 파일 안에 있습니다.)       
+   
+이제 이것을 기반으로 시레졸 Jar를 배포하여 실행까지 해보겠습니다.  
 
+## deploy.sh 파일 추가   
+1. scripts 디렉토리를 생성합니다.
+2. scripts 디렉토리에서 deploy.sh 파일을 생성합니다.   
+3. 아래 코드를 입력합니다.  
+
+**deploy.sh**
+```sh
+#!/bin/bash
+
+REPOSITORY=/home/ec2-user/app/step2
+PROJECT_NAME=freelec-springboot2-webservice
+
+echo "> Build 파일 복사"
+
+cp $REPOSITORY/zip/*.jar $REPOSITORY/
+
+echo "> 현재 구동중인 애플리케이션 pid 확인"
+
+CURRENT_PID=$(pgrep -fl freelec-springboot2-webservice | grep jar | awk '{print $1}')
+
+echo "현재 구동중인 어플리케이션 pid: $CURRENT_PID"
+
+if [ -z "$CURRENT_PID" ]; then
+    echo "> 현재 구동중인 애플리케이션이 없으므로 종료하지 않습니다."
+else
+    echo "> kill -15 $CURRENT_PID"
+    kill -15 $CURRENT_PID
+    sleep 5
+fi
+
+echo "> 새 어플리케이션 배포"
+
+JAR_NAME=$(ls -tr $REPOSITORY/*.jar | tail -n 1)
+
+echo "> JAR Name: $JAR_NAME"
+
+echo "> $JAR_NAME 에 실행권한 추가"
+
+chmod +x $JAR_NAME
+
+echo "> $JAR_NAME 실행"
+
+nohup java -jar \
+    -Dspring.config.location=classpath:/application.properties,classpath:/application-real.properties,/home/ec2-user/app/application-oauth.properties,/home/ec2-user/app/application-real-db.properties \
+    -Dspring.profiles.active=real \
+    $JAR_NAME > $REPOSITORY/nohup.out 2>&1 &
+```
+```sh
+
+REPOSITORY=/home/ec2-user/app/step2
+PROJECT_NAME=freelec-springboot2-webservice
+
+echo "> Build 파일 복사"
+
+cp $REPOSITORY/zip/*.jar $REPOSITORY/
+```
+* zip 폴더내에 있는 즉, 프로젝트내에 있는 jar 파일을 `step2`로 복사합니다.    
+
+```sh
+echo "> 현재 구동중인 애플리케이션 pid 확인"
+
+CURRENT_PID=$(pgrep -fl freelec-springboot2-webservice | grep jar | awk '{print $1}')
+
+echo "현재 구동중인 어플리케이션 pid: $CURRENT_PID"
+
+if [ -z "$CURRENT_PID" ]; then
+    echo "> 현재 구동중인 애플리케이션이 없으므로 종료하지 않습니다."
+else
+    echo "> kill -15 $CURRENT_PID"
+    kill -15 $CURRENT_PID
+    sleep 5
+fi
+```
+* 현재 실행중인 jar 가 있으면 종료시키는 역할을 합니다.   
+
+```sh
+echo "> 새 어플리케이션 배포"
+
+JAR_NAME=$(ls -tr $REPOSITORY/*.jar | tail -n 1)
+
+echo "> JAR Name: $JAR_NAME"
+
+echo "> $JAR_NAME 에 실행권한 추가"
+
+chmod +x $JAR_NAME
+
+```
+* jar의 이름을 얻어온 뒤 해당 jar에 실행권한을 부여합니다.   
+
+```sh
+nohup java -jar \
+    -Dspring.config.location=classpath:/application.properties,classpath:/application-real.properties,/home/ec2-user/app/application-oauth.properties,/home/ec2-user/app/application-real-db.properties \
+    -Dspring.profiles.active=real \
+```
+* nohup 방식으로 jar를 실행하고 jar 내의 properties, EC2에 있는 properties, 그리고 profile을 적용합니다.   
+    
+```sh
+$JAR_NAME > $REPOSITORY/nohup.out 2>&1 &
+```
+* **nohup 실행시 CodeDeploy 는 무한 대기상태가 됩니다.**   
+* 이러한 이슈를 해결하기 위해 nohup.out 파일을 표준 입출력용으로 별도로 사용합니다.   
+* 이렇게 하지 않을 경우 `nohup.out`파일이 생기지 않고, CodeDeploy 로그에 표준 입출력이 출력됩니다.   
+* nohup이 끝나기 전까지 CodeDeploy도 끝나지 않는다는 의미로 꼭 이렇게 해주도록 합시다.   
