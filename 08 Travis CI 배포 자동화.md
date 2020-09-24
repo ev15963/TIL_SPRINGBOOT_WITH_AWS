@@ -279,7 +279,7 @@ cache:
 script: "./gradlew clean build"
 
 before_deploy:
-  - zip -r freelec-springboot2-webservice *
+  - zip -r freelec-springboot2-webservice * # 해당 디렉토리에 있는 모든 요소들을 zip으로 묶음 
   - mkdir -p deploy # zip에 포함시킬 파일들을 담을 디렉토리 생성
   - mv freelec-springboot2-webservice.zip deploy/freelec-springboot2-webservice.zip
 
@@ -501,6 +501,8 @@ CodeDeploy 는 AWS의 배포 삼형제 중 하나이다.
 
 1. EC2 서버에 접속 후 `mkdir ~/app/step2 && mkdir ~/app/step2/zip` 입력      
 2. 프로젝트에서 CodeDeploy의 설정을 위한 `appspec.yml` 파일 생성      
+   
+**`appspec.yml`**
 ```yml
 version: 0.0
 os: linux
@@ -535,4 +537,89 @@ files:
    
 * `overwrite:` 기존에 파일들이 있으면 덮어쓸지를 결정합니다.   
 현재 yes라고 했으니 파일들을 덮어쓰게 됩니다.     
+    
+3. `.travis.yml` 에도 CodeDeploy 내용을 추가합니다.   
+    
+**`.travis.yml`**   
+```yml
+deploy:
+... S3 설정문...
+
+  - provider: codedeploy
+    access_key_id: $AWS_ACCESS_KEY # Travis repo settings에 설정된 값
+    secret_access_key: $AWS_SECRET_KEY # Travis repo settings에 설정된 값
+    bucket: kwj1270-freelec-springboot-build # s3
+    key: freelec-springboot2-webservice.zip # 빌드 파일을 압축해서 전달 
+    bundle_type: zip # 압축 확장자
+    application: freelec-springboot2-webservice # 웹 콘솔에서 등록한 CodeDeploy 애플리케이션
+    deployment_group: freelec-springboot2-webservice-group # 웹 콘솔에서 등록한 CodeDeploy 배포 그룹 
+    region: ap-northeast-2
+    wait-until-deployed: true
+```
+S3 옵션과 유사하지만 CodeDeploy의 애플리케이션 이름과 배포  그룹명을 지정합니다.     
+
+**.travis.yml*
+```yml
+language: java
+jdk:
+  - openjdk8
+branches:
+  only:
+    - master
+
+# Travis CI 서버의 Home
+cache:
+  directories:
+    - '$HOME/.m2/repository'
+    - '$HOME/.gradle'
+
+script: "./gradlew clean build"
+
+before_deploy:
+  - zip -r freelec-springboot2-webservice * # 해당 디렉토리에 있는 모든 요소들을 zip으로 묶음 
+  - mkdir -p deploy # zip에 포함시킬 파일들을 담을 디렉토리 생성
+  - mv freelec-springboot2-webservice.zip deploy/freelec-springboot2-webservice.zip # deploy로 zip파일 이동
+
+deploy:
+  - provider: s3
+    access_key_id: $AWS_ACCESS_KEY # Travis repo settings에 설정된 값
+    secret_access_key: $AWS_SECRET_KEY # Travis repo settings에 설정된 값
+    bucket: kwj1270-freelec-springboot-build # s3
+    region: ap-northeast-2
+    skip_cleanup: true
+    acl: private # zip 파일 접근을 private로
+    local_dir: deploy # before_deploy에서 생성한 디렉토리
+    wait-until-deployed: true
+
+  - provider: codedeploy
+    access_key_id: $AWS_ACCESS_KEY # Travis repo settings에 설정된 값
+    secret_access_key: $AWS_SECRET_KEY # Travis repo settings에 설정된 값
+    bucket: kwj1270-freelec-springboot-build # s3
+    key: freelec-springboot2-webservice.zip # 빌드 파일을 압축해서 전달 
+    bundle_type: zip # 압축 확장자
+    application: freelec-springboot2-webservice # 웹 콘솔에서 등록한 CodeDeploy 애플리케이션
+    deployment_group: freelec-springboot2-webservice-group # 웹 콘솔에서 등록한 CodeDeploy 배포 그룹
+    region: ap-northeast-2
+    wait-until-deployed: true
+
+# CI 실행 완료 시 메일로 알람
+notifications:
+  email:
+    recipients:
+      - kwj1270@naver.com
+```
+
+CodeDeploy 설정이 완료되었다면 한번 테스트를 위해 프로젝트에서 Commit 하고 Push를 진행해봅니다.     
+푸시가 되면 Travis CI가 동작될 것이고      
+Travis CI가 끝나면 CodeDeploy 서비스에서 배포까지 수행된것을 알 수 있을 것입니다.      
   
+배포가 끝났다면 다음 명령어로 파일들이 잘 도착했는지 확인해보겠습니다.   
+```
+cd /home/ec2-user/app/step2/zip
+```
+    
+파일 목록들을 확인해봅시다.   
+```
+ll
+```
+파일 목록이 정상적으로 있다면 Travis CI, S3, CodeDeploy가 연동되어 배포까지 이루어진것을 알 수 있습니다.   
