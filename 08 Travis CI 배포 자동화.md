@@ -767,5 +767,13 @@ before_deploy:
   - mv before-deploy/before-deploy.zip deploy/freelec-springboot2-webservice.zip # deploy로 zip파일 이동
 ```
 Travis CI는 특정 파일만 S3로 보내는 것이 불가능하고 디렉토리 단위만 업로드 할 수 있습니다.   
+그렇기에 S3에서 모든 값을 가지고 있는 프로젝트가 EC2로 이동될 것이고           
+여기서부터 우리가 사용할 파일들만 골라서 넣어주는 작업을 할 것입니다.          
+
+* `before-deploy` 디렉토리를 만들어 프로젝트 내에 있는 script, appspec.yml, build를 복사합니다.   
+* `before-deploy` 디렉토리를 zip 파일 형태로 만듭니다.   
+* `deploy` 디렉토리를 만든 뒤 `deploy/freelec-springboot2-webservice.zip`에 `before-deploy` 파일들을 복사합니다.    
+
+
 
 
