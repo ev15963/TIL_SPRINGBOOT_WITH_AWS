@@ -623,3 +623,6 @@ cd /home/ec2-user/app/step2/zip
 ll
 ```
 파일 목록이 정상적으로 있다면 Travis CI, S3, CodeDeploy가 연동되어 배포까지 이루어진것을 알 수 있습니다.     
+
+# 3. 배포 자동화 구성  
+
