@@ -757,6 +757,7 @@ jar 파일은 build 에 있고, appspec.yml, 배포를 위한 스크립트들을
 그렇기에 이 외 나머지는 배포에 필요하지 않으므로 `.travis.yml`을 수정하겠습니다.   
 
 ```yml
+# 참고로 .travis.yml 에서 작업은 travis 서버에서 동작하는 것이다.   
 before_deploy:
   - mkdir -p before-deploy # zip에 포함시킬 파일들을 담을 디렉토리 생성
   - cp scripts/*.sh before-deploy/
@@ -766,13 +767,16 @@ before_deploy:
   - cd ../ && mkdir -p deploy # 상위 디렉토리로 이동 후 deploy 디렉토리 생성
   - mv before-deploy/before-deploy.zip deploy/freelec-springboot2-webservice.zip # deploy로 zip파일 이동
 ```
-Travis CI는 특정 파일만 S3로 보내는 것이 불가능하고 디렉토리 단위만 업로드 할 수 있습니다.   
-그렇기에 S3에서 모든 값을 가지고 있는 프로젝트가 EC2로 이동될 것이고           
-여기서부터 우리가 사용할 파일들만 골라서 넣어주는 작업을 할 것입니다.          
+Travis CI는 특정 파일만 S3로 보내는 것이 불가능하고 디렉토리 단위만 업로드 할 수 있습니다.       
+그렇기에 ** Travis CI 서버에 특정 로직을 추가하여 원하는 파일만 zip으로 묶어서 올리겠습니다.**     
 
 * `before-deploy` 디렉토리를 만들어 프로젝트 내에 있는 script, appspec.yml, build를 복사합니다.   
 * `before-deploy` 디렉토리를 zip 파일 형태로 만듭니다.   
 * `deploy` 디렉토리를 만든 뒤 `deploy/freelec-springboot2-webservice.zip`에 `before-deploy` 파일들을 복사합니다.    
+* 후에 `deploy :` S3로 인하여 `deploy/freelec-springboot2-webservice.zip` 파일만 가져갑니다.     
+
+```yml
+```
 
 
 
