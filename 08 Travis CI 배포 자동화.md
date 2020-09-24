@@ -747,3 +747,25 @@ $JAR_NAME > $REPOSITORY/nohup.out 2>&1 &
 * 이러한 이슈를 해결하기 위해 nohup.out 파일을 표준 입출력용으로 별도로 사용합니다.   
 * 이렇게 하지 않을 경우 `nohup.out`파일이 생기지 않고, CodeDeploy 로그에 표준 입출력이 출력됩니다.   
 * nohup이 끝나기 전까지 CodeDeploy도 끝나지 않는다는 의미로 꼭 이렇게 해주도록 합시다.   
+  
+step1과의 차이점은 `git pull` 을 통해 직접 빌드했던 부분을 제거해준 것입니다.    
+
+## .travis.yml 수정    
+현재 프로젝트의 모든 파일을 zip 파일로 만드는데,         
+jar 파일은 build 에 있고, appspec.yml, 배포를 위한 스크립트들을 제외하면 불필요한 파일들입니다.        
+
+그렇기에 이 외 나머지는 배포에 필요하지 않으므로 `.travis.yml`을 수정하겠습니다.   
+
+```yml
+before_deploy:
+  - mkdir -p before-deploy # zip에 포함시킬 파일들을 담을 디렉토리 생성
+  - cp scripts/*.sh before-deploy/
+  - cp appspec.yml before-deploy/
+  - cp build/libs/*.jar before-deploy/
+  - cd before-deploy && zip -r before-deploy * # before-deploy로 이동 후 전체 압축
+  - cd ../ && mkdir -p deploy # 상위 디렉토리로 이동 후 deploy 디렉토리 생성
+  - mv before-deploy/before-deploy.zip deploy/freelec-springboot2-webservice.zip # deploy로 zip파일 이동
+```
+Travis CI는 특정 파일만 S3로 보내는 것이 불가능하고 디렉토리 단위만 업로드 할 수 있습니다.   
+
+
