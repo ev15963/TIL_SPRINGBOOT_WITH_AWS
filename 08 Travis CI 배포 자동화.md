@@ -492,3 +492,47 @@ CodeDeploy 는 AWS의 배포 삼형제 중 하나이다.
 6. 배포 유형에는 `현재 위치`를 선택, 만일 서비스가 2대 이상이라면 `블루/그린` 을 선택하면된다.   
 7. 화면 구성에서는 `Amazone EC2 인스턴스` 체크박스를 클릭, Key 와 Value에 적절한 값을 넣어준다.   
 8. 마지막으로 배포 구성은 `CodeDeployDefault.AllAtOnce`로 선택하고 `로드밸런싱 활성화` 체크는 해제해준다.   
+   * 배포 구성이란 한번 배포할 대 몇 대의 서버에 배포할지를 결정합니다.   
+   1대씩 배포할지, 30%, 50%로 나눠서 배포할지 등등이 있지만    
+   우리는 1대밖에 사용하지 않으므로 전체 배포 옵션으로 선택했습니다.    
+   
+### Travis CI, S3, CodeDeploy 연동 
+먼저 S3 에서 넘겨줄 zip 파일을 저장할 디렉토리를 하나 생성하겠습니다. (빌드된 jar가 있는 zip파일)     
+
+1. EC2 서버에 접속 후 `mkdir ~/app/step2 && mkdir ~/app/step2/zip` 입력      
+2. 프로젝트에서 CodeDeploy의 설정을 위한 `appspec.yml` 파일 생성      
+```yml
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /home/ec2-user/app/step2/zip/
+    overwriter: yes
+```    
+  
+```yml
+version: 0.0
+```
+* CodeDeploy 버전을 이야기합니다.   
+* 프로젝트 버전이 아니므로 0.0 외에 다른 버전을 사용하면 오류가 발생합니다.
+
+```yml
+os: linux
+```
+* CodeDeploy 가 실행될 os 환경을 기술해줍니다.   
+     
+```yml
+files:
+  - source: /
+    destination: /home/ec2-user/app/step2/zip/
+    overwriter: yes
+```
+* `source:` CodeDeploy에서 전달해준 파일 중 destination으로 이동 시킬 대상을 지정합니다.   
+루트 경로 `/`를 지정하면 전체 파일을 이야기합니다.     
+      
+* `destination:` source에서 지정된 파일들을 받을 위치입니다.  
+이후 jar 를 실행하는 등은 detination에서 옮긴 파일들로 진행됩니다.   
+   
+* `overwrite:` 기존에 파일들이 있으면 덮어쓸지를 결정합니다.   
+현재 yes라고 했으니 파일들을 덮어쓰게 됩니다.     
+  
