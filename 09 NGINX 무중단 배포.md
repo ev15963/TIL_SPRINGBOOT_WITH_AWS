@@ -77,8 +77,111 @@ NGINX의 기본적인 포트번호는 80이므로 EC2 보안그룹에 80번 트�
 |HTTP|TCP|80|사용자 지정-0.0.0.0/0|NGINX|
 |HTTP|TCP|80|사용자 지정-::/0|NGINX|
 
-### 리다이렉션 추가   
+### 리다이렉션 주소 추가   
+8080 포트가 아닌 80 포트로 주소가 변경되니 구글과 네이버 로그인에도 변경된 주소를 등록해야만 합니다.            
+기존에 등록된 리디렉션 주소에서 8080부분을 제거하여 추가 등록합니다.            
+               
+추가한 후에는 EC2의 도메인으로 접속을 해봅시다.         
+단, 기존의 8080포트가 아니라 80포트를 사용해서 접속을 해봅시다.(즉, 포트번호 없이 입력)           
+    
+### NGINX와 스프링 부트 연동   
+NGINX가 현재 실행중인 스프링 부트 프로젝트를 바라볼 수 있도록 NGINX 설정 파일에서 프록시 설정을 하겠습니다.     
+   
+```
+sudo vim /etc/nginx/nginx.conf
+```
+이후 `server{}`안에 있는 `location / ` 부분을 찾아서 다음과 같이 추가합니다.   
 
+```
+        location / {
+	      proxy_pass $service_url;
+                proxy_set_header X-Real_IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header Host $http_host;
+        }
+```
+```
+	      proxy_pass $service_url;
+```
+* NGINX 로 요청이 오면 `http://localhost:8080`으로 전달합니다.  
 
+```
+                proxy_set_header X-Real_IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header Host $http_host;
+```
+* 실제 요청 데이털르 header의 각 항목에 할당합니다.      
+* 예) `proxy_set_header X-Real_IP $remote_addr` : Request Header의 X-Real-IP에 요청자 IP를 저장합니다.       
+  
+수정이 끝났으면 `:wq` 명령어로 저장하고 종료합니다.   
+설정사항이 바뀌었으니 `sudo service nginx restart`를 통해 재시작을 해주어야 합니다.   
 
- 
+## 무중단 배포 스트립트 만들기    
+무중단 배포 스크립트를 만들기 전에 API를 하나 추가시켜줄 것입니다.   
+해당 API는 배포시에 8081을 사용할지, 8082를 사용할지 판단을 하는 기준이 됩니다.   
+
+### profile API 추가    
+profileController를 만들어 아래와 같은 코드를 추가합니다.     
+   
+1. `com.jojoldu.book.springboot.web`에 `profileController` 클래스를 생성합니다.     
+2. 아래와 같은 코드를 넣어줍니다.   
+
+**ProfileController**   
+```java
+import lombok.RequiredArgsConstructor;
+import org.springframework.core.env.Environment;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Arrays;
+import java.util.List;
+
+@RequiredArgsConstructor
+@RestController
+public class ProfileController {
+    private final Environment env;
+
+    @GetMapping("/profile")
+    public String profile(){
+        List<String> profiles = Arrays.asList(env.getActiveProfiles());
+        List<String> realProfiles = Arrays.asList("real", "real1", "real2");
+        String defaultProfile = profiles.isEmpty()? "default" : profiles.get(0);
+
+        return profiles.stream().filter(realProfiles::contains).findAny().orElse(defaultProfile);
+    }
+
+}
+```
+```java
+    private final Environment env;
+```
+Enviroment 클래스는 외부 설정파일을 가져와서 프로퍼티를 추가하거나 추출하는 역할을 합니다.
+외부 설정파일은 config 파일을 의미하고 현재 실행중인 상태에 대해서도 저장을 하고 있습니다.
+그리고 Enviroment 클래스는 외부 설정값을 자바에서 변경할 수도 있게끔 해줍니다.   
+
+```java
+        List<String> profiles = Arrays.asList(env.getActiveProfiles());
+```
+* 외부 설정파일에서 현재 실행중인 ActiveProfile을 모두 가져옵니다. (실행중인 서버 profile 상태)
+* 즉, real, oauth, real-db 등이 활성화되어 있다면 3개가 모두 담겨있습니다.   
+* 참고로 `asList()`는 가변 매개변수로 개수가 지정되어 있지 않습니다.   
+    
+```java
+        List<String> realProfiles = Arrays.asList("real", "real1", "real2");
+```
+* 여기서 `real`, `real1`, `real2`는 모두 배포에 사용될 profile이라 이들을 담은 List를 하나 만듭니다.   
+* 실제로 우리는 `real1`, `real2`만 사용할 것이지만 기존 상태로 다시 사용할 수도 있으니 real도 남겨줍니다.   
+* 밑에서 배포에 사용되는 profile이 있는지 없는지 검사할 때 기준이되므로 만들어줍니다.   
+
+```java
+        String defaultProfile = profiles.isEmpty()? "default" : profiles.get(0);
+```
+* `defaultProfile` 변수는 활성화 되어 있는 Profile이 없으면 default를 넣고 있으면 가장 처음 profile을 가져옵니다.   
+
+```java
+        return profiles.stream().filter(realProfiles::contains).findAny().orElse(defaultProfile);
+```
+* 현재 실행중인 profile 등 중에서 배포에 사용하는 프로파일이 있는 경우 순서에 상관없이 하나를 리턴하고 없으면 defaultProfile 리턴합니다. 
+* `realProfiles::contains`는 `contains(profiles 인스턴스중 하나)`로 동작하여 있는지 없는지 검사합니다.   
+    * `public boolean contains(Object o)`
+
