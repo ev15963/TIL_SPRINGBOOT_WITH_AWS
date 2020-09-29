@@ -687,7 +687,7 @@ ABSDIR=$(dirname $ABSPATH)
 source ${ABSDIR}/profile.sh
 ```
 * 쉘 스크립트를 실행하는 원본 파일이 속한 디렉토리에서 `profiles.sh` 스크립트 코드를 가져옵니다.        
-* 
+* 자바로 보면 일종의 import 같은 구문 
 * 이를 더 간단히 말하면 **현재 스크립트에 같은 디렉토리에 있는 profiles.sh 스크립트 코드를 가져와서 사용하는것입니다.**              
 	 
 ```sh
