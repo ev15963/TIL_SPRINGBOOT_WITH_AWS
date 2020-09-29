@@ -486,5 +486,45 @@ sudo service nginx restart
 다시 프로젝트에서 서버를 킨 후 브라우저에서 정상 동작을 한다면 설정이 잘 완료된 것입니다.    
    
 ### 배포 스크립트들 작성 
-  
+먼저 기존 step2와 중복되지 않기 위헤 EC2에 step3 디렉토리를 생성합니다.    
+
+```
+mkdir ~/app/step3 && mkdir ~/app/step3/zip
+```
+무중단 배포는 앞으로 step3를 사용하겠습니다.   
+그래서 `appspec.yml` 역시 step2로 되어있는 부분을 step3로 배포되도록 수정합니다.    
+    
+**appspec.yml**
+```yml
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /home/ec2-user/app/step3/zip/
+    overwriter: yes
+
+permissions:
+  - object: /
+    pattern: "**"
+    owner: ec2-user
+    group: ec2-user
+
+hooks:
+  AfterInstall:
+    - location: stop.sh # 엔진엑스와 연결되어 있지 않은 스프링 부트를 종료한다.
+      timeout: 60
+      runas: ec2-user
+  ApplicationStart:
+    - location: start.sh # 엔진엑스와 연결되어 있지 않은 Port로 새 버전의 스프링 부트를 시작한다.
+      timeout: 60
+      runas: ec2-user
+  ValidateService:
+    - location: health.sh # 새 스프링 부트가 정상적으로 실행됐는지 확인한다.
+      timeout: 60
+      runas: ec2-user
+```
+
+
+
+
    
