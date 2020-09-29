@@ -492,7 +492,14 @@ sudo service nginx restart
 mkdir ~/app/step3 && mkdir ~/app/step3/zip
 ```
 무중단 배포는 앞으로 step3를 사용하겠습니다.   
-그래서 `appspec.yml` 역시 step2로 되어있는 부분을 step3로 배포되도록 수정합니다.    
+그래서 `appspec.yml` 역시 step2로 되어있는 부분을 step3로 배포되도록 수정합니다.           
+또한 무중단 배포를 위한 스크립트가 총 5개여서 이에 관한 설정을 해주겠습니다.        
+
+* stop.sh : 기존 NGINX에 연결되어 있지는 않지만, 실행중이던 스프링부트 종료   
+* start.sh : 배포할 신규 버전 스프링 부트 프로젝트를 stop.sh로 종료한 `profile`로 실행     
+* health.sh : `start.sh`로 실행시킨 프로젝트가 정상적으로 실행됐는지 체크     
+* switch.sh : NGINX가 바라보는 스프링 부트를 최신 버전으로 변경      
+* profile.sh : 앞선 4개 스크립트 파일에서 공용으로 사용할 `profile`과 포트 체크 로직    
     
 **appspec.yml**
 ```yml
@@ -524,7 +531,117 @@ hooks:
       runas: ec2-user
 ```
 
-
-
-
+스크립트 부분은 JAR 파일이 복사된 이후부터 차례로 앞선 스크립트들이 실행된다고 보면 됩니다.       
    
+___ 
+이제 각 스크립트들에 대해서 코드를 작성해보겠습니다.   
+전체적으로 scripts 디렉토리 안에서 생성하겠습니다.    
+
+**profile.sh**
+```sh
+
+#!/usr/bin/env bash
+
+# bash는 return value가 안되니 *제일 마지막줄에 echo로 해서 결과 출력*후, 클라이언트에서 값을 사용한다
+
+# 쉬고 있는 profile 찾기: real1이 사용중이면 real2가 쉬고 있고, 반대면 real1이 쉬고 있음
+function find_idle_profile()
+{
+    RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/profile)
+
+    if [ ${RESPONSE_CODE} -ge 400 ] # 400 보다 크면 (즉, 40x/50x 에러 모두 포함)
+    then
+        CURRENT_PROFILE=real2
+    else
+        CURRENT_PROFILE=$(curl -s http://localhost/profile)
+    fi
+
+    if [ ${CURRENT_PROFILE} == real1 ]
+    then
+      IDLE_PROFILE=real2
+    else
+      IDLE_PROFILE=real1
+    fi
+
+    echo "${IDLE_PROFILE}"
+}
+
+# 쉬고 있는 profile의 port 찾기
+function find_idle_port()
+{
+    IDLE_PROFILE=$(find_idle_profile)
+
+    if [ ${IDLE_PROFILE} == real1 ]
+    then
+      echo "8081"
+    else
+      echo "8082"
+    fi
+}
+```
+```sh
+    RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/profile)
+```
+해당 코드를 해석하기 전에 curl에 대해서 설명하자면 **http 메시지를 쉘 상에서 요청하여 결과를 확인하는 명령어이다.**   
+
+* `-s` : `-silent` 라는 의미로 부가정보 없이 조회하도록 합니다.   
+* `-o` : `-option` 이라는 뜻으로     
+remote 에서 받아온 데이타를 기본적으로는 콘솔에 출력한다. -o 옵션 뒤에 FILE 을 적어주면 해당 FILE 로 저장한다.     
+* `-w` : http 응답 코드를 조회할 수 있도록 해주는 옵션이다.
+* `"%{http_code}"` : 응답 코드 출력시 포멧을 지정한 것으로 200, 403 같은 응답코드형식으로 나타내준다.   
+* `http://localhost/profile` : 우리가 정상적으로 수행하고 있는지 검사하는 대상 url
+
+자세한 내용은 https://qastack.kr/superuser/272265/getting-curl-to-output-http-status-code
+쉡게 말해서 `curl -s -o /dev/null -I -w "%{http_code}" http://www.example.org/`를 이용하면    
+구문 분석이 필요하지 않아 스크립트에서 사용하기 편한 '응답 상태 확인'을 한다는 것이다.           
+     
+* 현재 NGINX 가 바라보고 있는 스프링 부트가 정상적으로 수행중인지 확인합니다.   
+* 응답값을 httpStatus로 받습니다.   
+
+```sh
+    if [ ${RESPONSE_CODE} -ge 400 ] # 400 보다 크면 (즉, 40x/50x 에러 모두 포함)
+    then
+        CURRENT_PROFILE=real2
+    else
+        CURRENT_PROFILE=$(curl -s http://localhost/profile)
+    fi
+```
+* 정상이면 200, 오류가 발생한다면 400-503 사이로 발생하니 400 이상은 모두 예외로 보고 real2를 현재 profile로 합니다.    
+
+```sh
+    if [ ${CURRENT_PROFILE} == real1 ]
+    then
+      IDLE_PROFILE=real2
+    else
+      IDLE_PROFILE=real1
+    fi
+```
+* NGINX와 연결되지 않은 profile을 조회하는 코드입니다.   
+* IDLE_PROFILE는 이렇듯 연결되지 않은 profile을 담는 변수로 real1 이면 real2, real2 이면 real1로 세팅될 것입니다.   
+
+```sh
+    echo "${IDLE_PROFILE}"
+```
+* **bash라는 스크립트는 값을 반환하는 기능이 없습니다.**   
+* 그래서 **제일 마지막 줄에 echo로 결과를 출력한 후** 클라이언트에서 그 값을 잡아서 `($(find_idle_profile))`사용합니다.   
+* 위 코드를 보면 메서드 마지막에 echo를 사용했둣이 중간에 echo를 사용해서는 안 됩니다.    
+
+```sh
+# 쉬고 있는 profile의 port 찾기
+function find_idle_port()
+{
+    IDLE_PROFILE=$(find_idle_profile)
+
+    if [ ${IDLE_PROFILE} == real1 ]
+    then
+      echo "8081"
+    else
+      echo "8082"
+    fi
+}
+```
+* 기존 위에 정의한 메서드를 사용해서 현재 사용중이지 않는 profile을 구합니다.       
+* real1 일 경우 저희는 8081로 하자 했으니 8081을 출력합니다.         
+* real1 이 아닐 경우 (real2) 저희는 8082로 하자 했으니 8082를 출력합니다.   
+
+
