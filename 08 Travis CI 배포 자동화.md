@@ -787,7 +787,7 @@ permissions:
 
 hooks:
   AfterInstall:
-    - location: stop.sh # 엔진엑스와 연결되어 있지 않은 스프링 부트를 종료한다.
+    - location: deploy.sh # 엔진엑스와 연결되어 있지 않은 스프링 부트를 종료한다.
       timeout: 60
       runas: ec2-user
 ```
