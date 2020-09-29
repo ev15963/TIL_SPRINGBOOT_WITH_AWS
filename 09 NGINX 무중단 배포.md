@@ -185,4 +185,5 @@ Enviroment 클래스는 외부 설정파일을 가져와서 프로퍼티를 추�
 * `realProfiles::contains`는 `contains(profiles 인스턴스중 하나)`로 동작하여 있는지 없는지 검사합니다.   
     * `public boolean contains(Object o)`
 
-조금있다가 추가 
+조금있다가 추가   
+데이터베이스 설계중 
