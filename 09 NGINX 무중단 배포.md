@@ -643,5 +643,78 @@ function find_idle_port()
 * 기존 위에 정의한 메서드를 사용해서 현재 사용중이지 않는 profile을 구합니다.       
 * real1 일 경우 저희는 8081로 하자 했으니 8081을 출력합니다.         
 * real1 이 아닐 경우 (real2) 저희는 8082로 하자 했으니 8082를 출력합니다.   
+    
+**stop.sh**
+```sh
 
+#!/usr/bin/env bash
 
+ABSPATH=$(readlink -f $0)
+ABSDIR=$(dirname $ABSPATH)
+source ${ABSDIR}/profile.sh
+
+IDLE_PORT=$(find_idle_port)
+
+echo "> $IDLE_PORT 에서 구동중인 애플리케이션 pid 확인"
+IDLE_PID=$(lsof -ti tcp:${IDLE_PORT})
+
+if [ -z ${IDLE_PID} ]
+then
+  echo "> 현재 구동중인 애플리케이션이 없으므로 종료하지 않습니다."
+else
+  echo "> kill -15 $IDLE_PID"
+  kill -15 ${IDLE_PID}
+  sleep 5
+fi
+```   
+```sh
+ABSPATH=$(readlink -f $0)
+```
+* `readlink` : 심볼릭 링크의 원본 파일 확인  
+* `readlink -f` : 심볼릭 링크를 따라 최종의 파일을 절대경로로 반환 -> 가장 원본 파일       
+* `심볼릭 링크` : 링크를 연결하여 원본 파일을 직접 사용하는 것과 같은 효과를 내는 링크이다    
+* `$0` : 스크립트에서 실행 시 실행된 쉘 스크립트 경로를 포함한 파일명을 의미   
+* 즉, `readlink -f $0`는 현재 쉘 스크립트를 실행하는 원본 파일의 경로를 의미한다.    
+* 이를 더 간단히 말하면 **현재 스크립트가 있는 경로를 구한것입니다.**  
+
+```sh
+ABSDIR=$(dirname $ABSPATH)
+```
+* 앞서 구한 쉘 스크립트를 실행하는 원본 파일이 속한 디렉토리를 구합니다.
+* 이를 더 간단히 말하면 **현재 스크립트가 있는 디렉토리를 구한것입니다.**
+
+```sh
+source ${ABSDIR}/profile.sh
+```
+* 쉘 스크립트를 실행하는 원본 파일이 속한 디렉토리에서 `profiles.sh` 스크립트 코드를 가져옵니다.        
+* 
+* 이를 더 간단히 말하면 **현재 스크립트에 같은 디렉토리에 있는 profiles.sh 스크립트 코드를 가져와서 사용하는것입니다.**              
+	 
+```sh
+IDLE_PORT=$(find_idle_port)
+```
+* 앞서 `source ${ABSDIR}/profile.sh`로 인하여 `profile.sh` 스크립트를 사용할 수 있으므로   
+메서드인 `find_idle_port`를 통해서 사용하지 않는 포트값을 가져옵니다.   
+
+```sh
+echo "> $IDLE_PORT 에서 구동중인 애플리케이션 pid 확인"
+IDLE_PID=$(lsof -ti tcp:${IDLE_PORT})
+
+if [ -z ${IDLE_PID} ]
+then
+  echo "> 현재 구동중인 애플리케이션이 없으므로 종료하지 않습니다."
+else
+  echo "> kill -15 $IDLE_PID"
+  kill -15 ${IDLE_PID}
+  sleep 5
+fi
+```
+* 해당 포트번호가 사용중인지 아닌지 알기 위해 `lsof`를 이용해서 탐색을 진행합니다.   
+	* `lsof` : list open files 이라는 뜻으로 열려있는 파일이나 **실행중인 프로세스** 목록을 출력합니다.   
+	* `-t` : 자세한 정보를 출력하지 않고 pid 정보만 출력한다.
+	* `-i` : 모든 네트워크 포트를 표시하고 i 뒤에 프로토콜을 명시하면 해당 프로토콜 관련 포트만 표시한다.   
+	* `tcp:${IDLE_PORT}` : 사용하지 않는 포트로 조회된 포트가 tcp 프로토콜로 사용하는지 검사    
+* `-z` : 문자열의 길이가 0이면 true, 즉 기존에 사용안했다면 문자열이 없고 사용했다면 문자열이 있다.    
+* `  kill -15 ${IDLE_PID}` : 사용중이면 처리되는 로직에 있던 코드, 해당 포트를 죽인다
+	* `-9`도 있던데 차이는? `-9`는 강제종료 , `-15`는 종료 요청후 안전하게 종료    	
+* `sleep 5` : 5초간 대기 
