@@ -184,6 +184,232 @@ Enviroment 클래스는 외부 설정파일을 가져와서 프로퍼티를 추�
 * 현재 실행중인 profile 등 중에서 배포에 사용하는 프로파일이 있는 경우 순서에 상관없이 하나를 리턴하고 없으면 defaultProfile 리턴합니다. 
 * `realProfiles::contains`는 `contains(profiles 인스턴스중 하나)`로 동작하여 있는지 없는지 검사합니다.   
     * `public boolean contains(Object o)`
+   
+이제 해당 코드가 잘 동작하는지 테스트 코드를 작성해보겠습니다.        
+해당 컨트롤러는 특별히 **스프링 환경이 필요하지는 않습니다.**          
+Spring 관련 어노테이션과 클래스를 사용하지만 실제적으로는 Spring config 파일을 조회하기만 하는 것이기 때문입니다.        
+그래서 `@SpringBootTest`없이 테스트 코드를 작성합니다.
+     
+패키지는 test 폴더의 `package com.jojoldu.book.springboot.web`입니다.    
+   
+**ProfileControllerUnitTest**
+```java
+package com.jojoldu.book.springboot.web;
 
-조금있다가 추가   
-데이터베이스 설계중 
+import org.junit.Test;
+import org.springframework.mock.env.MockEnvironment;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+public class ProfileControllerUnitTest {
+
+    @Test
+    public void real_profile이_조회된다() {
+        //given
+        String expectedProfile = "real";
+        MockEnvironment env = new MockEnvironment();
+        env.addActiveProfile(expectedProfile);
+        env.addActiveProfile("oauth");
+        env.addActiveProfile("real-db");
+
+        ProfileController controller = new ProfileController(env);
+
+        //when
+        String profile = controller.profile();
+
+        //then
+        assertThat(profile).isEqualTo(expectedProfile);
+    }
+
+    @Test
+    public void real_profile이_없으면_첫번째가_조회된다() {
+        //given
+        String expectedProfile = "oauth";
+        MockEnvironment env = new MockEnvironment();
+
+        env.addActiveProfile(expectedProfile);
+        env.addActiveProfile("real-db");
+
+        ProfileController controller = new ProfileController(env);
+
+        //when
+        String profile = controller.profile();
+
+        //then
+        assertThat(profile).isEqualTo(expectedProfile);
+    }
+
+    @Test
+    public void active_profile이_없으면_default가_조회된다() {
+        //given
+        String expectedProfile = "default";
+        MockEnvironment env = new MockEnvironment();
+        ProfileController controller = new ProfileController(env);
+
+        //when
+        String profile = controller.profile();
+
+        //then
+        assertThat(profile).isEqualTo(expectedProfile);
+    }
+}
+```
+ProfileController나 Environment 모두 자바 클래스(인터페이스)이기 때문에 쉽게 테스트할 수 있습니다.              
+Enviroment는 인터페이스라 **가짜 구현체인 `MockEnvironment`를 사용해서 테스트하면됩니다.**       
+   
+또한 생성자 주입을 통해 쉽게 값을 넘겨줄 수 있는 장점도 발견할 수 있습니다.      
+만약 `@Autowired`를 사용하여 DI를 했다면 스프링 테스트를 사용했어야 했을겁니다.      
+
+```java
+    @Test
+    public void real_profile이_조회된다() {
+        //given
+        String expectedProfile = "real";
+        MockEnvironment env = new MockEnvironment();
+        env.addActiveProfile(expectedProfile);
+        env.addActiveProfile("oauth");
+        env.addActiveProfile("real-db");
+
+        ProfileController controller = new ProfileController(env);
+
+        //when
+        String profile = controller.profile();
+
+        //then
+        assertThat(profile).isEqualTo(expectedProfile);
+    }
+```
+* 가짜 Environment 구현체인 MockEnvironment 객체를 만듭니다.   
+* MockEnvironment 객체에 여러 profile을 넣어줍니다.   
+* ProfileController 에 해당 MockEnvironment 객체를 넣어줍니다.
+* 실제 배포용 profile이 존재하기에 Controller는 실제 배포용 profile을 리턴할 것입니다.   
+* 실제 배포용 profile이 기존에 준비한 profile과 일치하는지 검증합니다.    
+
+```java
+    @Test
+    public void real_profile이_없으면_첫번째가_조회된다() {
+        //given
+        String expectedProfile = "oauth";
+        MockEnvironment env = new MockEnvironment();
+
+        env.addActiveProfile(expectedProfile);
+        env.addActiveProfile("real-db");
+
+        ProfileController controller = new ProfileController(env);
+
+        //when
+        String profile = controller.profile();
+
+        //then
+        assertThat(profile).isEqualTo(expectedProfile);
+    }
+```
+* 가짜 Environment 구현체인 MockEnvironment 객체를 만듭니다.     
+* MockEnvironment 객체에 여러 profile을 넣어주는데 실제 배포 profile 들을 제외하고 넣어줍니다.    
+* ProfileController 에 해당 MockEnvironment 객체를 넣어줍니다.
+* 실제 배포용 profile이 존재하지는 않지만 다른 profile 들이 있으니 가장 먼저 들어간 profile을 리턴할 것입니다.     
+* 가장 먼저 들어간 profile이 리턴되었는지 검증합니다.      
+
+```java
+    @Test
+    public void active_profile이_없으면_default가_조회된다() {
+        //given
+        String expectedProfile = "default";
+        MockEnvironment env = new MockEnvironment();
+        ProfileController controller = new ProfileController(env);
+
+        //when
+        String profile = controller.profile();
+
+        //then
+        assertThat(profile).isEqualTo(expectedProfile);
+    }
+```
+
+* 가짜 Environment 구현체인 MockEnvironment 객체를 만듭니다.     
+* MockEnvironment 생성자에 객체에 넣어주지 않고 객체를 생성합니다. 
+* 어떤 profile이 존재하지 않으므로 `default` 를 리터할 것입니다.    
+* 리턴된 값이 `default`와 일치하는지 검증해줍니다.   
+    
+그리고 앞선 securityConfig에서도 `/profile`에 접근할 수 있도록 http 설정을 수정해줍시다.    
+
+```java
+
+package com.jojoldu.book.springboot.config.auth;
+
+import com.jojoldu.book.springboot.domain.user.Role;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+
+@RequiredArgsConstructor
+@EnableWebSecurity
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+    private final CustomOAuth2UserService customOAuth2UserService;
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http
+                .csrf().disable()
+                .headers().frameOptions().disable()
+                .and()
+                    .authorizeRequests()
+                    .antMatchers("/", "/css/**", "/images/**", "/js/**", "/h2-console/**", "/profile").permitAll()
+                    .antMatchers("/api/v1/**").hasRole(Role.USER.name())
+                    .anyRequest().authenticated()
+                .and()
+                    .logout()
+                        .logoutSuccessUrl("/")
+                .and()
+                    .oauth2Login()
+                        .userInfoEndpoint()
+                            .userService(customOAuth2UserService);
+    }
+}
+```
+그리고 securityConfig 설정이 잘 되었는지도 검증도 해주도록 합니다.      
+아 검증은 스프링 시큐리티 설정을 불러와야 하니 `@SpringBootTest`를 사용하는 테스트 클래스로 작성해줍니다.      
+**securityConfig** 자체에 대한 
+
+**ProfileControllerTest**
+```java
+package com.jojoldu.book.springboot.web;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.junit4.SpringRunner;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@RunWith(SpringRunner.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+public class ProfileControllerTest {
+
+    @LocalServerPort
+    private int port;
+
+    @Autowired
+    private TestRestTemplate restTemplate;
+
+    @Test
+    public void profile은_인증없이_호출된다() throws Exception {
+        String expected = "default";
+
+        ResponseEntity<String> response = restTemplate.getForEntity("/profile", String.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(expected);
+    }
+}
+```
+
+
+
+
