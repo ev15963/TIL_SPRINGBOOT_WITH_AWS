@@ -415,13 +415,46 @@ public class ProfileControllerTest {
 서버를 실제 실행한것도, 그리고 profile을 준것도 아니기 때문에 `default`가 나올수밖에 없습니다.         
     
 RestTemplate 클래스에 대해서 알고싶다면 https://advenoh.tistory.com/46 블로거님이 잘 정리했으니 보도록하자.      
-참고로 EndPoint의 의미를 몰라서 검색했는데     
-`ENDPOINT란 API가 서버에서 리소스에 접근할 수 있도록 가능하게 하는 URL이다`       
-라고 하지만 내 개인적인 생각으로는 중간에 에러가 발생하지 않고 마지막 로직까지 처리되는 것을 의미하는 것 같다.      
-   
-여기까지 모든 테스트가 성공했다면 깃허브로 푸시하여 배포합니다.    
-배포가 끝나면 브러우저에서 `/profile`로 접속해서 profile이 잘 나오는지 확인합니다.    
+참고로 EndPoint의 의미를 몰라서 검색했는데      
+`ENDPOINT란 API가 서버에서 리소스에 접근할 수 있도록 가능하게 하는 URL이다`          
+라고 하지만 내 개인적인 생각으로는 중간에 에러가 발생하지 않고 마지막 로직까지 처리되는 것을 의미하는 것 같다.        
+     
+여기까지 모든 테스트가 성공했다면 깃허브로 푸시하여 배포합니다.      
+배포가 끝나면 브러우저에서 `/profile`로 접속해서 profile이 잘 나오는지 확인합니다.       
+     
+### real, real2 profile 생성       
+현재 EC2 환경에서 실행되는 profile은 `real`로 **Travis CI 배포 자동화를 위한 profile**이니         
+무중단 배포를 위한 profile 2개(real1, real2)를 추가합니다.       
 
+**application-real1.properties**
+```java
+server.port=8081
+spring.profiles.include=oauth,real-db
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL5InnoDBDialect
+spring.session.store-type=jdbc
+```
+**application-real2.properties**
+```java
+
+server.port=8082
+spring.profiles.include=oauth,real-db
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL5InnoDBDialect
+spring.session.store-type=jdbc
+```
+2개의 profile은 대부분의 내용은 비슷하지만 **포트 번호만 다릅니다.**   
+
+### NGINX 설정 수정   
+무중단 배포의 핵심은 **NGINX 설정입니다.**    
+배포때마다 NGINX의 프록시 설정이 순식간에 교체됩니다.(스프링 부트로 요청을 흘려보내는)     
+여기서 프록시 설정이 교체될 수 있도록 설정을 추가하겠습니다.    
+
+NGINX 설정이 모여있는 `/etc/nginx/conf.d/`에 `service-url.inc`아는 파일을 하나 생성합니다.    
+   
+```   
+sudo vim /etc/nginx/conf.d/service-url.inc`    
+```
+    
+그리고 다음 코드를 입력합니다.   
 
 
 
