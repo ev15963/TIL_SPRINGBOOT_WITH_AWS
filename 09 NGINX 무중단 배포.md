@@ -94,17 +94,11 @@ sudo vim /etc/nginx/nginx.conf
 
 ```
         location / {
-	      proxy_pass $service_url;
                 proxy_set_header X-Real_IP $remote_addr;
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header Host $http_host;
         }
 ```
-```
-	      proxy_pass $service_url;
-```
-* NGINX 로 요청이 오면 `http://localhost:8080`으로 전달합니다.  
-
 ```
                 proxy_set_header X-Real_IP $remote_addr;
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -452,9 +446,41 @@ NGINX 설정이 모여있는 `/etc/nginx/conf.d/`에 `service-url.inc`아는 파
    
 ```   
 sudo vim /etc/nginx/conf.d/service-url.inc`    
+``` 
+그리고 다음 코드를 입력합니다.      
+      
 ```
-    
-그리고 다음 코드를 입력합니다.   
+set $service_url http://127.0.0.1:8080;
+```
+`:wq`로 저장하고 종료한 뒤 해당 파일은 엔직엔스가 사용할 수 있게 설정하겠습니다.        
+   
+```
+sudo vim /etc/nginx/nginx.conf
+```
+nginx 파일을 열어줍니다.   
 
+```
+        # Load configuration files for the default server block.
+        include /etc/nginx/default.d/*.conf;
+        include /etc/nginx/conf.d/service-url.inc;
 
+        location / {
+                proxy_pass $service_url;
+                proxy_set_header X-Real_IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header Host $http_host;
+        }		
+```
+`location /` 부분을 찾아서 위와 같이 수정해줍니다.      
 
+```
+	      proxy_pass $service_url;
+```
+* NGINX 로 요청이 오면 `http://localhost:8080`으로 전달한다는 뜻입니다.      
+  
+`:wq`로 저장하고 종료한 뒤 설정이 변경되었으니 nginx를 재시작해주어야 합니다.   
+
+```
+sudo service nginx restart
+```
+다시 프로젝트에서 서버를 킨 후 브라우저에서 정상 동작을 한다면 설정이 잘 완료된 것입니다.    
