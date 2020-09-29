@@ -368,11 +368,13 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                             .userService(customOAuth2UserService);
     }
 }
-```
-그리고 securityConfig 설정이 잘 되었는지도 검증도 해주도록 합니다.      
-아 검증은 스프링 시큐리티 설정을 불러와야 하니 `@SpringBootTest`를 사용하는 테스트 클래스로 작성해줍니다.      
-**securityConfig** 자체에 대한 
-
+```  
+그리고 securityConfig 설정이 잘 되었는지도 검증도 해주도록 합니다.         
+아 검증은 스프링 시큐리티 설정을 불러와야 하니 `@SpringBootTest`를 사용하는 테스트 클래스로 작성해줍니다.         
+    
+**securityConfig** 자체에 대한 테스트를 진행하는 것이 아닌      
+`ProfileController`가 실제 스프링 시큐리티 환경에서 동작하는지에 대한 테스트를 진행하는 것입니다.      
+     
 **ProfileControllerTest**
 ```java
 package com.jojoldu.book.springboot.web;
@@ -409,6 +411,16 @@ public class ProfileControllerTest {
     }
 }
 ```
+코드를 간단히 해석하자면 단순히 `/profile`로 이동했을 때 얻는 값이 `default` 인지 확인합니다.        
+서버를 실제 실행한것도, 그리고 profile을 준것도 아니기 때문에 `default`가 나올수밖에 없습니다.         
+    
+RestTemplate 클래스에 대해서 알고싶다면 https://advenoh.tistory.com/46 블로거님이 잘 정리했으니 보도록하자.      
+참고로 EndPoint의 의미를 몰라서 검색했는데     
+`ENDPOINT란 API가 서버에서 리소스에 접근할 수 있도록 가능하게 하는 URL이다`       
+라고 하지만 내 개인적인 생각으로는 중간에 에러가 발생하지 않고 마지막 로직까지 처리되는 것을 의미하는 것 같다.      
+   
+여기까지 모든 테스트가 성공했다면 깃허브로 푸시하여 배포합니다.    
+배포가 끝나면 브러우저에서 `/profile`로 접속해서 profile이 잘 나오는지 확인합니다.    
 
 
 
