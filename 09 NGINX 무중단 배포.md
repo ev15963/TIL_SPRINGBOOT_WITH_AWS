@@ -850,7 +850,8 @@ source ${ABSDIR}/profile.sh
 ```sh
     echo "set \$service_url http://127.0.0.1:${IDLE_PORT};" | sudo tee /etc/nginx/conf.d/service-url.inc
 ```
-* `set \$service_url http://127.0.0.1:${IDLE_PORT};`을 출력합니다. 
+* `"set \$service_url http://127.0.0.1:${IDLE_PORT};"`을 출력합니다. 
+* 쌍따옴표 `"` 를 넣어주지 않으면 해당 문자열을 파이프라인으로 넘겨지지 않게 됩니다.    
 * 앞에서 출력한 값을 `service-url.inc`에 덮어쓰기를 진행합니다 (참고로 내용 전체를 덮어씁니다.)     
 * `tee` 명령어는 입력과 출력을 동시에 하는 명령어로 덮어쓴후 해당 내용을 출력할 것입니다.   
 
@@ -974,3 +975,12 @@ for RETRY_COUNT in {1..10}
   sleep 10
 ```
 * 10회 이전에는 해당 스크립트가 실행되는데 10초 후에 다시 반복하도록 합니다.   
+    
+총정리 하자면     
+1. NGINX 와 연결되지 않은 포트로 스프링 부트가 잘 수행되었는지 체크합니다.   
+2. 잘 떴는지 확인되어야 NGINX 프록시 설정을 변경합니다.   
+3. NGINX 프록시 설정 변경은 switch.sh 의 switch_proxy 메서드로 수행을합니다.    
+4. 만약 프록시 설정 변경이 되지 않는다면 NGINX 연결을 시키지 않고 종료시킵니다.   
+
+
+
