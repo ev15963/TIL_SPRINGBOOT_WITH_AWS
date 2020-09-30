@@ -991,6 +991,104 @@ for RETRY_COUNT in {1..10}
 * `profile.sh` : 현재 바라보고 있지 않는 즉, 이제 사용할 profile 과 port 값을 구해줍니다.   
 * `switch.sh` : service_url.inc 값을 바꿔줍니다. 
 
+## 무중단 배포 태스트 
+배포 테스트를 진행하기 전에 한가지 해야할 일이 있습니다.   
+잦은 배포로 Jar 파일명이 겹칠 수있습니다.   
+매번 버전을 수동으로 올리는 것은 매우 귀찮은 일이므로 자동으로 버전값을 올릴 수 있도록 조치하겠습니다.  
+
+```gradle
+version '1.0.1-SNAPSHOT-'+new Date().format("yyyyMMddHHmmss")
+```
+
+**build.gradle**
+```gradle
+buildscript {
+    ext{
+        springBootVersion = '2.1.7.RELEASE'
+    }
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+group 'com.jojoldu.book'
+version '1.0.3-SNAPSHOT-'+new Date().format("yyyyMMddHHmmss")
+sourceCompatibility = 1.8
+
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+dependencies {
+    compile('org.springframework.boot:spring-boot-starter-web')
+    compile('org.projectlombok:lombok')
+    compile('org.springframework.boot:spring-boot-starter-data-jpa')
+    compile('com.h2database:h2')
+    compile('org.springframework.boot:spring-boot-starter-mustache')
+    compile('org.springframework.boot:spring-boot-starter-oauth2-client')
+    compile('org.springframework.session:spring-session-jdbc')
+    compile('org.mariadb.jdbc:mariadb-java-client')
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+    testCompile('org.springframework.security:spring-security-test')
+}
+```
+* build.gradle 은 **Groovy 기반**의 '빌드 툴'입니다.   
+* 그렇기에 Groovy 언어의 여러 문법을 사용할 수 있는데,   
+여기서는 `newDate()`로 빌드할 때마다 그 시간이 버전에 추가되도록 구성했습니다.      
+   
+여기까지 구성한 뒤 최종 코드를 깃허브로 푸시합니다.      
+배포가 자동으로 진행되면 CodeDeploy 로그로 잘 진행되는지 확인해봅니다.         
+
+```
+tail -f /opt/codedeploy-agent/deployment-root/deployment-logs/codedeploy-agent-deployments.log
+```
+그럼 아래와 같은 로그들이 출력될 것이고 이를 확인해주면 됩니다.   
+```
+[2020-06-28 15:19:25.563] [d-C6B8LCX54][stdout]> curl -s http://localhost:8081/profile
+[2020-06-28 15:19:35.613] [d-C6B8LCX54][stdout]> Health check의 응답을 알 수 없거나 혹은 실행 상태가 아닙니다.
+[2020-06-28 15:19:35.613] [d-C6B8LCX54][stdout]> Health check:
+[2020-06-28 15:19:35.613] [d-C6B8LCX54][stdout]> Health check 연결 실패. 재시도...
+[2020-06-28 15:19:45.951] [d-C6B8LCX54][stdout]> Health check 성공
+[2020-06-28 15:19:45.964] [d-C6B8LCX54][stdout]> 전환할 Port: 8081
+[2020-06-28 15:19:45.964] [d-C6B8LCX54][stdout]> Port 전환
+[2020-06-28 15:19:45.978] [d-C6B8LCX54][stdout]set $service_url http://127.0.0.1:8081;
+[2020-06-28 15:19:45.979] [d-C6B8LCX54][stdout]> 엔진엑스 Reload
+[2020-06-28 15:19:46.011] [d-C6B8LCX54][stdout]Reloading nginx: [  OK  ]
+```
+   
+스프링 부트 로그도 보고 싶다면 다음 명령어로 확인할 수 있습니다.   
+
+```
+vim ~/app/step3/nohup.out
+```
+그럼 스프링 부트 실행 로그를 직접 볼 수 있습니다.    
+한 번 더 배포하면 그때는 `real2`로 배포될 것입니다.    
+이 과정에서 브라우저 새로고침을 해보면 전혀 중단 없는 것을 확인할 수 있습니다.   
+2번 배포를 진행한 뒤에 다음과 같이 자바 애플리케이션 실행 여부를 확인합니다.   
+
+```
+ps -ef | grep java
+```
+  
+다음과 같이 2개의 애플리케이션이 실행되고 있음을 알 수 있습니다.   
+
+```
+java -jar -Dspring.config.location=...-Dspring.profiles.active=real1 /home/ec2-user/app/step3/~~/jar
+java -jar -Dspring.config.location=...-Dspring.profiles.active=real2 /home/ec2-user/app/step3/~~/jar
+```
+이제 이 시스템은 마스터 브랜치에 푸시가 발생하면 자동으로 서버 배포가 진행되고,      
+서버 중단 역시 전혀 없는 시스템이 되었습니다.         
 
 
 
