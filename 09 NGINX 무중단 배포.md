@@ -814,6 +814,52 @@ nohup java -jar \
 * 또한 `profile.active=$IDLE_PROFILE` 을 이용하여 profile을 바꿔서 실행합니다.   
 * CodeDeploy에서 무한 대기상태에 빠지는 것을 막기위해 `$JAR_NAME > $REPOSITORY/nohup.out 2>&1 &`를 기술해줍니다.    
 
+**switch.sh**
+```sh
+#!/usr/bin/env bash
+
+ABSPATH=$(readlink -f $0)
+ABSDIR=$(dirname $ABSPATH)
+source ${ABSDIR}/profile.sh
+
+function switch_proxy() {
+    IDLE_PORT=$(find_idle_port)
+
+    echo "> 전환할 Port: $IDLE_PORT"
+    echo "> Port 전환"
+    echo "set \$service_url http://127.0.0.1:${IDLE_PORT};" | sudo tee /etc/nginx/conf.d/service-url.inc
+
+    echo "> 엔진엑스 Reload"
+    sudo service nginx reload
+}
+```
+우선 해당 sh는 `health.sh`에서 사용할 것입니다.   
+
+```sh
+ABSPATH=$(readlink -f $0)
+ABSDIR=$(dirname $ABSPATH)
+source ${ABSDIR}/profile.sh
+```
+* 앞선 내용과 똑같이 `profile.sh`를 사용하기 위한 코드입니다.   
+
+```sh
+    IDLE_PORT=$(find_idle_port)
+```
+* 현재 사용하지 않는 포트를 가져옵니다. 
+
+```sh
+    echo "set \$service_url http://127.0.0.1:${IDLE_PORT};" | sudo tee /etc/nginx/conf.d/service-url.inc
+```
+* `set \$service_url http://127.0.0.1:${IDLE_PORT};`을 출력합니다. 
+* 앞에서 출력한 값을 `service-url.inc`에 덮어쓰기를 진행합니다 (참고로 내용 전체를 덮어씁니다.)     
+* `tee` 명령어는 입력과 출력을 동시에 하는 명령어로 덮어쓴후 해당 내용을 출력할 것입니다.   
+
+```sh
+    echo "> 엔진엑스 Reload"
+    sudo service nginx reload
+```
+* `service-url.inc`의 내용이 변경되었으나 설정파일만 다시 불러오면 되므로 nginx 를 `reload` 해줍니다.      
+   
 **health.sh**
 ```sh
 #!/usr/bin/env bash
@@ -871,5 +917,60 @@ IDLE_PORT=$(find_idle_port)
 * 현재 사용하지 않는 포트를 가져옵니다.     
 
 ```sh
-
+for RETRY_COUNT in {1..10}
 ```
+* 반복문을 진행합니다.   
+* 리눅스 for는 닫는 괄호가 아니여서 1~9까지가 아닌 1~10까지 반복합니다.      
+
+```sh
+  RESPONSE=$(curl -s http://localhost:${IDLE_PORT}/profile)
+```
+* `-s` : `-silent` 정숙모드를 이용해서 진행 내역, 메시지등을 제외하여 출력할때 주로 사용합니다. (주로 응답코드때 사용)     
+* 여기서는 응답코드 대신에 real1, real2 와 같이 현재 사용하지 않는 포트에 대한 profile을 리턴합니다.      
+    
+```sh
+  UP_COUNT=$(echo ${RESPONSE} | grep 'real' | wc -l)
+```
+* 현재 사용하지 않는 포트의 profile을 출력하고 
+* 해당 profile에 real 이란 이름이 있는지 검색합니다.   
+* 그리고 있으면 라인 수가 1이 되고, 없으면 라인 수가 0이 되는데 이를 `UP_COUNT` 변수에 할당합니다.
+* `grep` : 입력되는 파일에서 주어진 패턴 목록과 매칭되는 라인을 검색한 다음 표준 출력으로 검색된 라인을 복사해서 출력합니다. 
+* 즉 real이란 단어를 검색한 다음 출력합니다.   
+* `wc` : 파일내의 문자/라인/단어 의 수를 출력하도록 하는 명령어입니다.   
+* `-l` : wc의 출력 대상을 라인으로 지정합니다.   
+* 즉, 현재 사용하지 않는 profile이 real을 가리키면 1을 넣고 없으면 0을 넣습니다.     
+
+```sh
+  if [ ${UP_COUNT} -ge 1 ]
+  then # $up_count >= 1 ("real" 문자열이 있는지 검증)
+      echo "> Health check 성공"
+      switch_proxy
+      break
+  else
+      echo "> Health check의 응답을 알 수 없거나 혹은 실행 상태가 아닙니다."
+      echo "> Health check: ${RESPONSE}"
+  fi
+```
+* UP_COUNT 변수값이 1이 이상인지 체크합니다.  
+* `-ge` : 는 `A >= B`와 같은 의미로 왼쪽 피연산자가 오른쪽 피연산자에 대해 **이상**인지 검증합니다.   
+* 1 이상이면 `real` 관련 profile 즉, 배포 profile 이므로 `switch_proxy` 메서드를 실행합니다.  
+	* switch_proxy 는 switch.sh 에 정의된 메서드로 `service-url.inc`의 내용을 사용하지 않는 port로 바꿉니다.  
+	* break 가 있으므로 해당 구문 이후에는 아래 스크립트들이 실행되지 않도록 해줍니다.  
+* `real` 관련 profile이 아닐경우 아니라는 출력을 해줍니다.   
+
+```sh
+  if [ ${RETRY_COUNT} -eq 10 ]
+  then
+    echo "> Health check 실패. "
+    echo "> 엔진엑스에 연결하지 않고 배포를 종료합니다."
+    exit 1
+  fi
+```
+* 만약 10회 이상동안 `real` 관련 `profile`이 나오지 않아 `break` 되지 않았다면 
+* NGINX 를 연결하지 않고 종료시킵니다.   
+
+```sh
+  echo "> Health check 연결 실패. 재시도..."
+  sleep 10
+```
+* 10회 이전에는 해당 스크립트가 실행되는데 10초 후에 다시 반복하도록 합니다.   
