@@ -759,4 +759,60 @@ ABSPATH=$(readlink -f $0)
 ABSDIR=$(dirname $ABSPATH)
 source ${ABSDIR}/profile.sh
 ```
-앞선 내용과 
+* 앞선 내용과 똑같이 `profile.sh`를 사용하기 위한 코드입니다.   
+
+```sh
+REPOSITORY=/home/ec2-user/app/step3
+PROJECT_NAME=freelec-springboot2-webservice
+```
+* 프로젝트를 실행할 레포지토리랑 프로젝트 이름을 기술합니다.   
+
+```sh
+echo "> Build 파일 복사"
+echo "> cp $REPOSITORY/zip/*.jar $REPOSITORY/"
+
+cp $REPOSITORY/zip/*.jar $REPOSITORY/
+```
+* 기존 Travis CI 와 S3를 이용하면서 zip 폴더안에는 Jar와 스크립트들이 들어있습니다.      
+* 해당 jar파일을 zip보다 한단계 위 디렉토리로 옮깁니다.(step3로)         
+
+```sh
+
+echo "> 새 어플리케이션 배포"
+JAR_NAME=$(ls -tr $REPOSITORY/*.jar | tail -n 1)
+
+echo "> JAR Name: $JAR_NAME"
+
+echo "> $JAR_NAME 에 실행권한 추가"
+
+chmod +x $JAR_NAME
+
+echo "> $JAR_NAME 실행"
+```
+* 애플리케이션 배포를 위해 jar 파일의 이름을 얻습니다.   
+* 또한 해당 jar 파일이 실행될 수 있도록 실행권한을 줍니다.   
+* `-t` : 파일을 시간순으로 정렬합니다. 최신순으로 내림차순합니다.(최신이 맨위)
+* `-r` : 반대로 출력합니다.   
+* 즉 최신이 가장 밑에 있도록 하는 것입니다.   
+* `tail` : 파일의 내용을 뒤에서부터 출력하는 명령어입니다. 여기서는 목록의 맨뒤를 의미합니다.   
+* `-n 숫자` : K개의 줄을 출력합니다. 즉 맨뒤에서 1개만 출력하는 것입니다.   
+* 종합하자면 최신 jar 파일을 1개 가져온다 생각하면 될 것입니다.   
+
+```sh
+IDLE_PROFILE=$(find_idle_profile)
+```
+* 사용하지 않는 profile 을 받아옵니다. (real1 or real2)
+
+```sh
+nohup java -jar \
+    -Dspring.config.location=classpath:/application.properties,classpath:/application-$IDLE_PROFILE.properties,/home/ec2-user/app/application-oauth.properties,/home/ec2-user/app/application-real-db.properties \
+    -Dspring.profiles.active=$IDLE_PROFILE \
+    $JAR_NAME > $REPOSITORY/nohup.out 2>&1 &
+```
+* nohup 으로 jar파일을 실행하는데 `application-$IDLE_PROFILE.properties` 으로 실행합니다.   
+* 즉, 사용하지 않는 서버로 jar를 실행합니다.   
+* 또한 `profile.active=$IDLE_PROFILE` 을 이용하여 profile을 바꿔서 실행합니다.   
+* CodeDeploy에서 무한 대기상태에 빠지는 것을 막기위해 `$JAR_NAME > $REPOSITORY/nohup.out 2>&1 &`를 기술해줍니다.    
+
+
+
